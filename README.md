@@ -19,7 +19,7 @@ Activate Data Change Definitions for each object you want DCR to govern:
 Create `LifeSciDataChgDefMngFld` records to define which fields are tracked for changes. Without these, DCR will not trigger.
 
 **Steps:**
-1. App Launcher > **Life Sciences Data Change Definition Managed Fields** > New
+1. App Launcher > **Life Science Data Change Definition Managed Fields** > New
 2. Name format: `ObjectName_FieldApiName` (e.g., `Account_Name`)
 3. Select the parent Data Change Definition (e.g., Account)
 4. Enter the Field API Name
@@ -120,3 +120,9 @@ Once setup is complete:
 ## DCR Status Flow
 
 `NotProcessed` > `Qualified` / `NotQualified` > `Processed` / `Failed` > `Approved` / `Rejected` / `Retry`
+
+## LWC Component: lscMobileInline_DCR_Overview
+
+An LWC component that displays all Data Change Requests related to an Account. Place it on the Account record page.
+
+Since `LifeSciDataChangeRequest` has no direct Account lookup, the component queries related objects (HealthcareProvider, ContactPointAddress, etc.) for the account, collects their IDs, then finds DCRs where `DataChangeRecordIdentifier` matches those IDs.

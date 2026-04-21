@@ -1,0 +1,31 @@
+<template>
+    <lightning-card title={cardTitle} icon-name="standard:record">
+        <template lwc:if={isLoading}>
+            <div class="slds-p-around_medium">
+                <lightning-spinner alternative-text="Loading" size="small"></lightning-spinner>
+            </div>
+        </template>
+
+        <template lwc:if={error}>
+            <div class="slds-p-around_medium slds-text-color_error">
+                {error}
+            </div>
+        </template>
+
+        <template lwc:if={hasDCRs}>
+            <lightning-datatable
+                key-field="Id"
+                data={dcrs}
+                columns={columns}
+                hide-checkbox-column
+                show-row-number-column
+            ></lightning-datatable>
+        </template>
+
+        <template lwc:elseif={!isLoading}>
+            <div class="slds-p-around_medium slds-text-align_center slds-text-color_weak">
+                No Data Change Requests found for this account.
+            </div>
+        </template>
+    </lightning-card>
+</template>
