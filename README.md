@@ -6,6 +6,115 @@ Data Change Request (DCR) governs how data changes are submitted, validated, and
 
 **Supported Objects:** Account, HealthcareProvider, HealthcareProviderSpecialty, HealthcareProviderNpi, ContactPointAddress, ContactPointPhone, ContactPointSocial, ContactPointEmail, BusinessLicense, ProviderAffiliation.
 
+## Data Model
+
+```mermaid
+erDiagram
+    Account ||--o{ HealthcareProvider : "AccountId"
+    Account ||--o{ ContactPointAddress : "ParentId"
+    Account ||--o{ ContactPointPhone : "ParentId"
+    Account ||--o{ ContactPointEmail : "ParentId"
+    Account ||--o{ ContactPointSocial : "ParentReferenceRecordId"
+    Account ||--o{ BusinessLicense : "AccountId"
+    Account ||--o{ ProviderAffiliation : "AccountId / RelatedAccountId"
+    HealthcareProvider ||--o{ HealthcareProviderNpi : "PractitionerId"
+    HealthcareProvider ||--o{ HealthcareProviderSpecialty : "PractitionerId"
+
+    LifeSciDataChangeDef ||--o{ LifeSciDataChgDefMngFld : "LifeSciDataChgDefId"
+    LifeSciDataChangeDef ||--o{ LifeSciDataChgDefRecType : "LifeSciDataChgDefId"
+    LifeSciDataChangeDef ||--o{ LifeSciDataChgPersonaDef : "LifeSciDataChgDefId"
+    LifeSciDataChangeDef ||--o{ LifeSciDataChangeRequest : "LifeSciDataChgDefId"
+    LifeSciDataChangeRequest ||--o{ LifeSciDataChangeRequest : "ParentDataChangeRequestId"
+
+    Account {
+        Id Id
+        string Name
+        string RecordTypeId
+    }
+    HealthcareProvider {
+        Id Id
+        Id AccountId
+        string ProfessionalTitle
+        string ProviderType
+    }
+    ContactPointAddress {
+        Id Id
+        Id ParentId
+        string Address
+    }
+    ContactPointPhone {
+        Id Id
+        Id ParentId
+    }
+    ContactPointEmail {
+        Id Id
+        Id ParentId
+    }
+    ContactPointSocial {
+        Id Id
+        Id ParentReferenceRecordId
+    }
+    BusinessLicense {
+        Id Id
+        Id AccountId
+    }
+    ProviderAffiliation {
+        Id Id
+        Id AccountId
+        Id RelatedAccountId
+        string Role
+    }
+    HealthcareProviderNpi {
+        Id Id
+        Id PractitionerId
+    }
+    HealthcareProviderSpecialty {
+        Id Id
+        Id PractitionerId
+        Id SpecialtyId
+    }
+    LifeSciDataChangeDef {
+        Id Id
+        string DeveloperName
+        string ObjectName
+        boolean IsActive
+    }
+    LifeSciDataChgDefMngFld {
+        Id Id
+        Id LifeSciDataChgDefId
+        string FieldApiName
+        boolean ApplyChangeImmediately
+        string ValidationType
+    }
+    LifeSciDataChgDefRecType {
+        Id Id
+        Id LifeSciDataChgDefId
+        Id RecordTypeId
+        string ValidationType
+        boolean NewRecApprovalRequired
+    }
+    LifeSciDataChgPersonaDef {
+        Id Id
+        Id LifeSciDataChgDefId
+        Id ProfileId
+        string ChangeUpdateType
+        boolean IsActive
+    }
+    LifeSciDataChangeRequest {
+        Id Id
+        string Name
+        Id LifeSciDataChgDefId
+        Id ParentDataChangeRequestId
+        string Status
+        string OperationType
+        string ValidationType
+        string DataChangeRecordIdentifier
+        text DataChangeInformation
+    }
+```
+
+The `LifeSciDataChangeRequest` has **no direct Account lookup**. The account relationship is indirect -- `DataChangeRecordIdentifier` stores the ID of the changed record (e.g., a HealthcareProvider), and the `DataChangeInformation` JSON contains the `accountid` field within the old/new data payloads.
+
 ## Setup Checklist
 
 ### 1. Data Change Definitions

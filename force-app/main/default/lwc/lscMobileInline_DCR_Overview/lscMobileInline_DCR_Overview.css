@@ -1,0 +1,63 @@
+.dcr-row {
+    border-bottom: 1px solid var(--slds-g-color-border-base-1, #e5e5e5);
+    padding: 0.25rem 0;
+}
+
+.dcr-row:last-child {
+    border-bottom: none;
+}
+
+.dcr-header {
+    cursor: pointer;
+    padding: 0.15rem 0;
+}
+
+.dcr-header:hover {
+    background-color: var(--slds-g-color-neutral-base-95, #f3f3f3);
+    border-radius: 4px;
+}
+
+.chevron {
+    flex-shrink: 0;
+}
+
+.dcr-detail {
+    animation: slideDown 0.15s ease-out;
+}
+
+@keyframes slideDown {
+    from { opacity: 0; max-height: 0; }
+    to { opacity: 1; max-height: 500px; }
+}
+
+.old-value {
+    text-decoration: line-through;
+    color: var(--slds-g-color-neutral-base-50, #969492);
+}
+
+.new-value {
+    color: var(--slds-g-color-brand-base-50, #0176d3);
+}
+
+.status-badge[data-variant="warning"] {
+    --slds-c-badge-color-background: #fe9339;
+    --slds-c-badge-text-color: #fff;
+}
+
+.status-badge[data-variant="success"] {
+    --slds-c-badge-color-background: #2e844a;
+    --slds-c-badge-text-color: #fff;
+}
+
+.status-badge[data-variant="error"] {
+    --slds-c-badge-color-background: #ea001e;
+    --slds-c-badge-text-color: #fff;
+}
+
+table {
+    font-size: 0.75rem;
+}
+
+th {
+    font-size: 0.6rem;
+}
