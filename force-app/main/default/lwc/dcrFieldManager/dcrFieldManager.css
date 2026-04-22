@@ -29,6 +29,10 @@
     border-left: 4px solid #2e844a;
 }
 
+.tile-unconfigured {
+    border-left: 4px solid #fe9339;
+}
+
 .tile-selected {
     border-color: #0176d3;
     box-shadow: 0 0 0 1px #0176d3;
@@ -61,6 +65,16 @@
     margin-top: 0.125rem;
 }
 
+.tile-config {
+    display: flex;
+    gap: 0.25rem;
+    margin-top: 0.25rem;
+}
+
+.config-icon {
+    --sds-c-icon-color-foreground-default: currentColor;
+}
+
 .field-panel {
     background: #fff;
     border: 1px solid #e5e5e5;
@@ -78,6 +92,40 @@
     font-size: 1rem;
     font-weight: 700;
     color: #181818;
+}
+
+.config-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    padding: 0.5rem 0;
+}
+
+.config-item {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+}
+
+.config-label {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #706e6b;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.persona-chip {
+    display: inline-flex;
+    align-items: center;
+    background: #e8f4e8;
+    border-radius: 4px;
+    padding: 0.125rem 0.5rem;
+    font-size: 0.75rem;
+    color: #2e844a;
+    font-weight: 600;
+    margin-left: 0.25rem;
 }
 
 .badge-active {

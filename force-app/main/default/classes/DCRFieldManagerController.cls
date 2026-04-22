@@ -5,6 +5,13 @@ public with sharing class DCRFieldManagerController {
         @AuraEnabled public String objectName;
         @AuraEnabled public String developerName;
         @AuraEnabled public List<FieldInfo> fields;
+        @AuraEnabled public Boolean hasRecordType;
+        @AuraEnabled public String recTypeId;
+        @AuraEnabled public String recTypeValidation;
+        @AuraEnabled public Boolean hasPersonaDef;
+        @AuraEnabled public String personaDefId;
+        @AuraEnabled public String personaChangeUpdateType;
+        @AuraEnabled public List<PersonaInfo> personas;
     }
 
     public class FieldInfo {
@@ -22,6 +29,19 @@ public with sharing class DCRFieldManagerController {
         @AuraEnabled public String id;
         @AuraEnabled public String label;
         @AuraEnabled public String isoCode;
+    }
+
+    public class PersonaInfo {
+        @AuraEnabled public String id;
+        @AuraEnabled public String profileId;
+        @AuraEnabled public String profileName;
+        @AuraEnabled public Boolean isActive;
+        @AuraEnabled public String changeUpdateType;
+    }
+
+    public class ProfileOption {
+        @AuraEnabled public String id;
+        @AuraEnabled public String name;
     }
 
     @AuraEnabled(cacheable=true)
@@ -46,6 +66,18 @@ public with sharing class DCRFieldManagerController {
     }
 
     @AuraEnabled(cacheable=true)
+    public static List<ProfileOption> getProfiles() {
+        List<ProfileOption> profiles = new List<ProfileOption>();
+        for (Profile p : [SELECT Id, Name FROM Profile WHERE UserType = 'Standard' ORDER BY Name]) {
+            ProfileOption po = new ProfileOption();
+            po.id = p.Id;
+            po.name = p.Name;
+            profiles.add(po);
+        }
+        return profiles;
+    }
+
+    @AuraEnabled(cacheable=true)
     public static List<ObjectDefinition> getObjectDefinitions(String countryId) {
         Map<Id, LifeSciDataChangeDef> defs = new Map<Id, LifeSciDataChangeDef>([
             SELECT Id, DeveloperName, ObjectName
@@ -54,7 +86,7 @@ public with sharing class DCRFieldManagerController {
             ORDER BY ObjectName
         ]);
 
-        String query = 'SELECT Id, Name, LifeSciDataChgDefId, FieldApiName, ShouldApplyChngImmediately, ValidationType, CountryId FROM LifeSciDataChgDefMngFld';
+        String query = 'SELECT Id, LifeSciDataChgDefId, FieldApiName, ShouldApplyChngImmediately, ValidationType, CountryId FROM LifeSciDataChgDefMngFld';
         if (String.isNotBlank(countryId)) {
             query += ' WHERE CountryId = :countryId';
         }
@@ -68,10 +100,34 @@ public with sharing class DCRFieldManagerController {
             managedByDef.get(mf.LifeSciDataChgDefId).put(mf.FieldApiName, mf);
         }
 
-        List<String> objectNames = new List<String>();
-        for (LifeSciDataChangeDef d : defs.values()) {
-            objectNames.add(d.ObjectName);
+        List<LifeSciDataChgDefRecType> recTypes = [
+            SELECT Id, LifeSciDataChgDefId, RecordTypeId, ValidationType, CountryId
+            FROM LifeSciDataChgDefRecType
+        ];
+        Map<Id, LifeSciDataChgDefRecType> recTypeByDef = new Map<Id, LifeSciDataChgDefRecType>();
+        for (LifeSciDataChgDefRecType rt : recTypes) {
+            recTypeByDef.put(rt.LifeSciDataChgDefId, rt);
         }
+
+        List<LifeSciDataChgPersonaDef> personaDefs = [
+            SELECT Id, LifeSciDataChgDefId, ProfileId, IsActive, ChangeUpdateType
+            FROM LifeSciDataChgPersonaDef
+        ];
+        Map<Id, List<LifeSciDataChgPersonaDef>> personasByDef = new Map<Id, List<LifeSciDataChgPersonaDef>>();
+        for (LifeSciDataChgPersonaDef pd : personaDefs) {
+            if (!personasByDef.containsKey(pd.LifeSciDataChgDefId)) {
+                personasByDef.put(pd.LifeSciDataChgDefId, new List<LifeSciDataChgPersonaDef>());
+            }
+            personasByDef.get(pd.LifeSciDataChgDefId).add(pd);
+        }
+
+        Set<Id> profileIds = new Set<Id>();
+        for (LifeSciDataChgPersonaDef pd : personaDefs) {
+            if (pd.ProfileId != null) profileIds.add(pd.ProfileId);
+        }
+        Map<Id, Profile> profileMap = new Map<Id, Profile>([
+            SELECT Id, Name FROM Profile WHERE Id IN :profileIds
+        ]);
 
         Map<String, Schema.SObjectType> globalDescribe = Schema.getGlobalDescribe();
         List<ObjectDefinition> result = new List<ObjectDefinition>();
@@ -90,6 +146,32 @@ public with sharing class DCRFieldManagerController {
             od.objectName = def.ObjectName;
             od.developerName = def.DeveloperName;
             od.fields = new List<FieldInfo>();
+
+            LifeSciDataChgDefRecType rt = recTypeByDef.get(def.Id);
+            od.hasRecordType = (rt != null);
+            if (rt != null) {
+                od.recTypeId = rt.Id;
+                od.recTypeValidation = rt.ValidationType;
+            }
+
+            List<LifeSciDataChgPersonaDef> pds = personasByDef.get(def.Id);
+            od.hasPersonaDef = (pds != null && !pds.isEmpty());
+            od.personas = new List<PersonaInfo>();
+            if (pds != null) {
+                for (LifeSciDataChgPersonaDef pd : pds) {
+                    PersonaInfo pi = new PersonaInfo();
+                    pi.id = pd.Id;
+                    pi.profileId = pd.ProfileId;
+                    pi.isActive = pd.IsActive;
+                    pi.changeUpdateType = pd.ChangeUpdateType;
+                    if (pd.ProfileId != null && profileMap.containsKey(pd.ProfileId)) {
+                        pi.profileName = profileMap.get(pd.ProfileId).Name;
+                    } else {
+                        pi.profileName = 'All Profiles';
+                    }
+                    od.personas.add(pi);
+                }
+            }
 
             for (String fieldName : fieldMap.keySet()) {
                 Schema.DescribeFieldResult dfr = fieldMap.get(fieldName).getDescribe();
@@ -156,6 +238,66 @@ public with sharing class DCRFieldManagerController {
         mf.ValidationType = validationType;
         mf.ShouldApplyChngImmediately = applyImmediately;
         update mf;
+    }
+
+    @AuraEnabled
+    public static String addRecordTypeMapping(String defId, String recordTypeId, String validationType) {
+        LifeSciDataChgDefRecType rt = new LifeSciDataChgDefRecType();
+        rt.LifeSciDataChgDefId = defId;
+        rt.RecordTypeId = recordTypeId;
+        rt.ValidationType = validationType;
+        rt.IsNewRecApprovalRequired = true;
+        try {
+            insert rt;
+        } catch (DmlException e) {
+            throw new AuraHandledException(e.getDmlMessage(0));
+        }
+        return rt.Id;
+    }
+
+    @AuraEnabled
+    public static void removeRecordTypeMapping(String recTypeId) {
+        delete [SELECT Id FROM LifeSciDataChgDefRecType WHERE Id = :recTypeId];
+    }
+
+    @AuraEnabled
+    public static String addPersonaDef(String defId, String profileId, String changeUpdateType) {
+        LifeSciDataChgPersonaDef pd = new LifeSciDataChgPersonaDef();
+        pd.LifeSciDataChgDefId = defId;
+        if (String.isNotBlank(profileId)) {
+            pd.ProfileId = profileId;
+        }
+        pd.ChangeUpdateType = changeUpdateType;
+        pd.IsActive = true;
+        try {
+            insert pd;
+        } catch (DmlException e) {
+            throw new AuraHandledException(e.getDmlMessage(0));
+        }
+        return pd.Id;
+    }
+
+    @AuraEnabled
+    public static void removePersonaDef(String personaDefId) {
+        delete [SELECT Id FROM LifeSciDataChgPersonaDef WHERE Id = :personaDefId];
+    }
+
+    @AuraEnabled(cacheable=true)
+    public static List<Map<String, String>> getDcrRecordTypes() {
+        List<Map<String, String>> result = new List<Map<String, String>>();
+        for (RecordType rt : [SELECT Id, Name FROM RecordType WHERE SobjectType = 'LifeSciDataChangeRequest' ORDER BY Name]) {
+            result.add(new Map<String, String>{ 'id' => rt.Id, 'name' => rt.Name });
+        }
+        if (result.isEmpty()) {
+            Schema.DescribeSObjectResult dsr = LifeSciDataChangeRequest.SObjectType.getDescribe();
+            List<Schema.RecordTypeInfo> rtInfos = dsr.getRecordTypeInfos();
+            for (Schema.RecordTypeInfo rti : rtInfos) {
+                if (rti.isAvailable() && !rti.isMaster()) {
+                    result.add(new Map<String, String>{ 'id' => rti.getRecordTypeId(), 'name' => rti.getName() });
+                }
+            }
+        }
+        return result;
     }
 
     private class FieldInfoComparator implements System.Comparator<FieldInfo> {

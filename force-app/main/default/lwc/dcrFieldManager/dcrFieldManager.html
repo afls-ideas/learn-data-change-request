@@ -34,6 +34,18 @@
                             <div class="tile-body">
                                 <span class="tile-name">{obj.objectName}</span>
                                 <span class="tile-count">{obj.summary}</span>
+                                <div class="tile-config">
+                                    <template for:each={obj.configIcons} for:item="ci">
+                                        <lightning-icon
+                                            key={ci.key}
+                                            icon-name={ci.icon}
+                                            size="xx-small"
+                                            variant={ci.variant}
+                                            title={ci.title}
+                                            class="config-icon"
+                                        ></lightning-icon>
+                                    </template>
+                                </div>
                             </div>
                         </div>
                     </template>
@@ -53,6 +65,62 @@
                                 <h2 class="panel-title">{selectedObject.objectName}</h2>
                                 <lightning-badge label={selectedObject.summary} class={selectedObject.badgeClass}></lightning-badge>
                             </div>
+
+                            <!-- Config status bar -->
+                            <div class="config-bar slds-m-top_small">
+                                <div class="config-item">
+                                    <span class="config-label">Record Type:</span>
+                                    <template lwc:if={selectedObject.hasRecordType}>
+                                        <lightning-badge label={selectedObject.recTypeValidation} class="slds-m-left_x-small badge-active"></lightning-badge>
+                                        <lightning-button-icon
+                                            icon-name="utility:delete"
+                                            variant="bare"
+                                            size="small"
+                                            alternative-text="Remove Record Type"
+                                            data-rectypeid={selectedObject.recTypeId}
+                                            onclick={handleRemoveRecordType}
+                                            class="slds-m-left_x-small"
+                                        ></lightning-button-icon>
+                                    </template>
+                                    <template lwc:else>
+                                        <lightning-button
+                                            label="Add Record Type"
+                                            variant="neutral"
+                                            size="small"
+                                            data-def={selectedObject.defId}
+                                            onclick={handleAddRecordType}
+                                            class="slds-m-left_x-small"
+                                        ></lightning-button>
+                                    </template>
+                                </div>
+                                <div class="config-item">
+                                    <span class="config-label">Personas:</span>
+                                    <template lwc:if={selectedObject.hasPersonaDef}>
+                                        <template for:each={selectedObject.personas} for:item="p">
+                                            <span key={p.id} class="persona-chip">
+                                                {p.profileName}
+                                                <lightning-button-icon
+                                                    icon-name="utility:close"
+                                                    variant="bare"
+                                                    size="x-small"
+                                                    alternative-text="Remove"
+                                                    data-personaid={p.id}
+                                                    onclick={handleRemovePersona}
+                                                ></lightning-button-icon>
+                                            </span>
+                                        </template>
+                                    </template>
+                                    <lightning-button
+                                        label="Add Persona"
+                                        variant="neutral"
+                                        size="small"
+                                        data-def={selectedObject.defId}
+                                        onclick={handleAddPersona}
+                                        class="slds-m-left_x-small"
+                                    ></lightning-button>
+                                </div>
+                            </div>
+
                             <div class="slds-m-top_small">
                                 <lightning-input
                                     type="search"
@@ -130,4 +198,80 @@
             </template>
         </div>
     </lightning-card>
+
+    <!-- Record Type Modal -->
+    <template lwc:if={showRecordTypeModal}>
+        <section class="slds-modal slds-fade-in-open">
+            <div class="slds-modal__container">
+                <div class="slds-modal__header">
+                    <lightning-button-icon
+                        icon-name="utility:close"
+                        variant="bare-inverse"
+                        alternative-text="Close"
+                        onclick={handleCloseRecordTypeModal}
+                        class="slds-modal__close"
+                    ></lightning-button-icon>
+                    <h2 class="slds-modal__title">Add Record Type Mapping</h2>
+                </div>
+                <div class="slds-modal__content slds-p-around_medium">
+                    <lightning-combobox
+                        label="DCR Record Type"
+                        value={modalRecordTypeId}
+                        options={recordTypeOptions}
+                        onchange={handleModalRecordTypeChange}
+                        class="slds-m-bottom_small"
+                    ></lightning-combobox>
+                    <lightning-combobox
+                        label="Validation Type"
+                        value={modalValidationType}
+                        options={validationTypeOptions}
+                        onchange={handleModalValidationChange}
+                    ></lightning-combobox>
+                </div>
+                <div class="slds-modal__footer">
+                    <lightning-button label="Cancel" onclick={handleCloseRecordTypeModal}></lightning-button>
+                    <lightning-button label="Save" variant="brand" onclick={handleSaveRecordType} class="slds-m-left_x-small"></lightning-button>
+                </div>
+            </div>
+        </section>
+        <div class="slds-backdrop slds-backdrop_open"></div>
+    </template>
+
+    <!-- Persona Modal -->
+    <template lwc:if={showPersonaModal}>
+        <section class="slds-modal slds-fade-in-open">
+            <div class="slds-modal__container">
+                <div class="slds-modal__header">
+                    <lightning-button-icon
+                        icon-name="utility:close"
+                        variant="bare-inverse"
+                        alternative-text="Close"
+                        onclick={handleClosePersonaModal}
+                        class="slds-modal__close"
+                    ></lightning-button-icon>
+                    <h2 class="slds-modal__title">Add Persona Definition</h2>
+                </div>
+                <div class="slds-modal__content slds-p-around_medium">
+                    <lightning-combobox
+                        label="Profile"
+                        value={modalProfileId}
+                        options={profileOptions}
+                        onchange={handleModalProfileChange}
+                        class="slds-m-bottom_small"
+                    ></lightning-combobox>
+                    <lightning-combobox
+                        label="Change Update Type"
+                        value={modalChangeUpdateType}
+                        options={changeUpdateOptions}
+                        onchange={handleModalChangeUpdateChange}
+                    ></lightning-combobox>
+                </div>
+                <div class="slds-modal__footer">
+                    <lightning-button label="Cancel" onclick={handleClosePersonaModal}></lightning-button>
+                    <lightning-button label="Save" variant="brand" onclick={handleSavePersona} class="slds-m-left_x-small"></lightning-button>
+                </div>
+            </div>
+        </section>
+        <div class="slds-backdrop slds-backdrop_open"></div>
+    </template>
 </template>
