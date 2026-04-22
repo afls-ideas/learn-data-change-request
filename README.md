@@ -234,4 +234,4 @@ Once setup is complete:
 
 A compact LWC that shows pending Data Change Requests on an Account record page. Renders nothing when there are no pending DCRs; shows an expandable banner with before/after field diffs when there are. Uses GraphQL — no Apex controller required.
 
-See the full component documentation: [force-app/main/default/lwc/lscMobileInline_DCR_Overview/README.md](force-app/main/default/lwc/lscMobileInline_DCR_Overview/README.md)
+See the full component documentation: [LWC_README.md](LWC_README.md)
