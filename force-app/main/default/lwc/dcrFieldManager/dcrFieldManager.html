@@ -1,0 +1,133 @@
+<template>
+    <lightning-card title="DCR Managed Fields" icon-name="standard:settings">
+        <div class="slds-p-horizontal_medium slds-p-bottom_medium">
+
+            <div class="slds-m-bottom_medium">
+                <lightning-combobox
+                    label="Country"
+                    value={selectedCountryId}
+                    options={countries}
+                    onchange={handleCountryChange}
+                    class="country-picker"
+                ></lightning-combobox>
+            </div>
+
+            <template lwc:if={isLoading}>
+                <div class="slds-p-around_large slds-align_absolute-center">
+                    <lightning-spinner alternative-text="Loading" size="medium"></lightning-spinner>
+                </div>
+            </template>
+
+            <template lwc:if={isSaving}>
+                <div class="saving-overlay">
+                    <lightning-spinner alternative-text="Saving" size="small"></lightning-spinner>
+                </div>
+            </template>
+
+            <template lwc:if={hasObjects}>
+                <div class="tile-grid">
+                    <template for:each={processedObjects} for:item="obj">
+                        <div key={obj.defId} class={obj.tileClass} data-object={obj.objectName} onclick={handleSelectObject}>
+                            <div class="tile-icon">
+                                <lightning-icon icon-name={obj.iconName} size="medium"></lightning-icon>
+                            </div>
+                            <div class="tile-body">
+                                <span class="tile-name">{obj.objectName}</span>
+                                <span class="tile-count">{obj.summary}</span>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+
+                <template lwc:if={selectedObject}>
+                    <div class="field-panel">
+                        <div class="field-panel-header">
+                            <div class="slds-grid slds-grid_vertical-align-center">
+                                <lightning-button-icon
+                                    icon-name="utility:back"
+                                    variant="bare"
+                                    alternative-text="Back"
+                                    onclick={handleDeselectObject}
+                                    class="slds-m-right_small"
+                                ></lightning-button-icon>
+                                <h2 class="panel-title">{selectedObject.objectName}</h2>
+                                <lightning-badge label={selectedObject.summary} class={selectedObject.badgeClass}></lightning-badge>
+                            </div>
+                            <div class="slds-m-top_small">
+                                <lightning-input
+                                    type="search"
+                                    placeholder="Filter fields..."
+                                    value={searchTerm}
+                                    onchange={handleSearchChange}
+                                    variant="label-hidden"
+                                    label="Search"
+                                ></lightning-input>
+                            </div>
+                        </div>
+
+                        <div class="field-table-wrapper">
+                            <table class="field-table">
+                                <thead>
+                                    <tr>
+                                        <th style="width:50px">DCR</th>
+                                        <th>Field Label</th>
+                                        <th>API Name</th>
+                                        <th>Type</th>
+                                        <th style="width:140px">Validation</th>
+                                        <th style="width:80px">Apply Immediately</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <template for:each={selectedObject.displayFields} for:item="field">
+                                        <tr key={field.key} class={field.rowClass}>
+                                            <td>
+                                                <lightning-input
+                                                    type="checkbox"
+                                                    checked={field.isManaged}
+                                                    data-field={field.apiName}
+                                                    data-def={field.defId}
+                                                    data-label={field.label}
+                                                    data-managed={field.managedFieldId}
+                                                    onchange={handleFieldToggle}
+                                                    variant="label-hidden"
+                                                    label="Toggle DCR"
+                                                ></lightning-input>
+                                            </td>
+                                            <td class="field-label">{field.label}</td>
+                                            <td class="field-api">{field.apiName}</td>
+                                            <td class="field-type">{field.typeLabel}</td>
+                                            <td>
+                                                <template lwc:if={field.isManaged}>
+                                                    <lightning-combobox
+                                                        value={field.validationType}
+                                                        options={field.validationOptions}
+                                                        data-managed={field.managedFieldId}
+                                                        onchange={handleValidationChange}
+                                                        variant="label-hidden"
+                                                        label="Validation Type"
+                                                    ></lightning-combobox>
+                                                </template>
+                                            </td>
+                                            <td>
+                                                <template lwc:if={field.isManaged}>
+                                                    <lightning-input
+                                                        type="checkbox"
+                                                        checked={field.applyImmediately}
+                                                        data-managed={field.managedFieldId}
+                                                        onchange={handleApplyImmediatelyChange}
+                                                        variant="label-hidden"
+                                                        label="Apply Immediately"
+                                                    ></lightning-input>
+                                                </template>
+                                            </td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </template>
+            </template>
+        </div>
+    </lightning-card>
+</template>

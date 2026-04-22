@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<PermissionSet xmlns="http://soap.sforce.com/2006/04/metadata">
+    <label>DCR Field Manager Access</label>
+    <description>Grants access to the DCR Field Manager tab and Apex controller</description>
+    <hasActivationRequired>false</hasActivationRequired>
+    <tabSettings>
+        <tab>DCR_Field_Manager</tab>
+        <visibility>Visible</visibility>
+    </tabSettings>
+    <classAccesses>
+        <apexClass>DCRFieldManagerController</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
+</PermissionSet>
