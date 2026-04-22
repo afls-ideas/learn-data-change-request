@@ -232,6 +232,6 @@ Once setup is complete:
 
 ## LWC Component: lscMobileInline_DCR_Overview
 
-An LWC component that displays all Data Change Requests related to an Account. Place it on the Account record page.
+A compact LWC that shows pending Data Change Requests on an Account record page. Renders nothing when there are no pending DCRs; shows an expandable banner with before/after field diffs when there are. Uses GraphQL — no Apex controller required.
 
-Since `LifeSciDataChangeRequest` has no direct Account lookup, the component queries related objects (HealthcareProvider, ContactPointAddress, etc.) for the account, collects their IDs, then finds DCRs where `DataChangeRecordIdentifier` matches those IDs.
+See the full component documentation: [force-app/main/default/lwc/lscMobileInline_DCR_Overview/README.md](force-app/main/default/lwc/lscMobileInline_DCR_Overview/README.md)

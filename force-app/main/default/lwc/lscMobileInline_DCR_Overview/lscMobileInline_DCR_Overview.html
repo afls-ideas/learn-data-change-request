@@ -1,70 +1,44 @@
 <template>
-    <template lwc:if={isLoading}>
-        <lightning-spinner alternative-text="Loading" size="small"></lightning-spinner>
-    </template>
-
-    <template lwc:if={error}>
-        <div class="slds-p-around_small slds-text-color_error slds-text-body_small">
-            {error}
-        </div>
-    </template>
-
-    <template lwc:if={hasDCRs}>
-        <div class="slds-p-horizontal_small slds-p-vertical_xx-small">
-            <div class="slds-grid slds-grid_vertical-align-center slds-p-bottom_xx-small">
-                <lightning-icon icon-name="standard:record_update" size="x-small" class="slds-m-right_x-small"></lightning-icon>
-                <span class="slds-text-title_caps slds-text-color_weak" style="font-size: 0.65rem;">DCR</span>
-                <template lwc:if={hasPending}>
-                    <lightning-badge label={pendingCount} class="slds-m-left_x-small slds-theme_warning" style="font-size: 0.65rem;"></lightning-badge>
-                    <span class="slds-m-left_xx-small slds-text-body_small slds-text-color_weak">pending</span>
-                </template>
-                <template lwc:else>
-                    <span class="slds-m-left_x-small slds-text-body_small slds-text-color_weak">{summaryText}</span>
-                </template>
+    <template lwc:if={hasPending}>
+        <div class="container">
+            <div class="banner" onclick={handleToggleAll}>
+                <lightning-icon icon-name="utility:warning" size="xx-small" variant="warning" class="slds-m-right_xx-small"></lightning-icon>
+                <span class="banner-text">
+                    {pendingCount} pending Data Change Request{pluralS}
+                </span>
+                <lightning-icon icon-name={toggleIcon} size="xx-small" class="slds-m-left_xx-small toggle-icon"></lightning-icon>
             </div>
 
-            <template for:each={processedDcrs} for:item="dcr">
-                <div key={dcr.id} class="dcr-row">
-                    <div class="dcr-header slds-grid slds-grid_vertical-align-center" data-id={dcr.id} onclick={handleToggle}>
-                        <lightning-icon
-                            icon-name={dcr.chevronIcon}
-                            size="xx-small"
-                            class="slds-m-right_xx-small chevron"
-                        ></lightning-icon>
-                        <lightning-badge label={dcr.statusLabel} data-variant={dcr.statusVariant} class="status-badge slds-m-right_x-small"></lightning-badge>
-                        <span class="slds-text-body_small slds-truncate">{dcr.objectLabel}</span>
-                        <span class="slds-text-body_small slds-text-color_weak slds-m-left_xx-small">
-                            &middot; {dcr.changeCount} field(s)
-                        </span>
-                    </div>
-
-                    <template lwc:if={dcr.isExpanded}>
-                        <div class="dcr-detail slds-p-left_medium slds-p-vertical_xx-small">
-                            <template lwc:if={dcr.hasChanges}>
-                                <table class="slds-table slds-table_cell-buffer slds-table_bordered slds-text-body_small">
-                                    <thead>
-                                        <tr>
-                                            <th scope="col" class="slds-text-title_caps" style="width:30%">Field</th>
-                                            <th scope="col" class="slds-text-title_caps" style="width:35%">Previous</th>
-                                            <th scope="col" class="slds-text-title_caps" style="width:35%">New</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <template for:each={dcr.changes} for:item="change">
-                                            <tr key={change.key}>
-                                                <td class="slds-text-color_weak">{change.label}</td>
-                                                <td class="old-value">{change.oldValue}</td>
-                                                <td class="new-value"><strong>{change.newValue}</strong></td>
-                                            </tr>
-                                        </template>
-                                    </tbody>
-                                </table>
-                            </template>
-
-                            <div class="slds-grid slds-grid_vertical-align-center slds-p-top_xx-small slds-text-body_small slds-text-color_weak">
-                                <span>{dcr.name} &middot; {dcr.operationType} &middot; {dcr.validationType} &middot; {dcr.createdByName}</span>
-                                <a href={dcr.recordUrl} class="slds-m-left_x-small">View Record</a>
+            <template lwc:if={isExpanded}>
+                <div class="detail-panel">
+                    <template for:each={pendingDcrs} for:item="dcr">
+                        <div key={dcr.id} class="dcr-section">
+                            <div class="dcr-section-header">
+                                <span class="object-label">{dcr.objectLabel}</span>
+                                <span class="meta">{dcr.name} &middot; {dcr.createdByName}</span>
                             </div>
+                            <template lwc:if={dcr.hasChanges}>
+                                <div class="table-wrapper">
+                                    <table class="change-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Field</th>
+                                                <th>Current</th>
+                                                <th>Requested</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <template for:each={dcr.changes} for:item="change">
+                                                <tr key={change.key}>
+                                                    <td>{change.label}</td>
+                                                    <td class="old-value">{change.oldValue}</td>
+                                                    <td class="new-value">{change.newValue}</td>
+                                                </tr>
+                                            </template>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </template>
                         </div>
                     </template>
                 </div>

@@ -1,5 +1,5 @@
 import { LightningElement, api, wire } from 'lwc';
-import getDCRsForAccount from '@salesforce/apex/DCROverviewController.getDCRsForAccount';
+import { gql, graphql } from 'lightning/uiGraphQLApi';
 
 const FIELD_LABELS = {
     providertype: 'Provider Type',
@@ -30,32 +30,128 @@ const OBJECT_LABELS = {
     '001': 'Account'
 };
 
+const RELATED_QUERY = gql`
+    query GetRelatedRecords($accountId: ID) {
+        uiapi {
+            query {
+                HealthcareProvider(
+                    where: { AccountId: { eq: $accountId } }
+                    first: 100
+                ) {
+                    edges { node { Id Name { value } } }
+                }
+                ContactPointAddress(
+                    where: { ParentId: { eq: $accountId } }
+                    first: 100
+                ) {
+                    edges { node { Id Name { value } } }
+                }
+                ContactPointPhone(
+                    where: { ParentId: { eq: $accountId } }
+                    first: 100
+                ) {
+                    edges { node { Id Name { value } } }
+                }
+                ContactPointEmail(
+                    where: { ParentId: { eq: $accountId } }
+                    first: 100
+                ) {
+                    edges { node { Id Name { value } } }
+                }
+                BusinessLicense(
+                    where: { AccountId: { eq: $accountId } }
+                    first: 100
+                ) {
+                    edges { node { Id Name { value } } }
+                }
+            }
+        }
+    }
+`;
+
+const DCR_QUERY = gql`
+    query GetDCRs($ids: [String]) {
+        uiapi {
+            query {
+                LifeSciDataChangeRequest(
+                    where: { DataChangeRecordIdentifier: { in: $ids } }
+                    orderBy: { CreatedDate: { order: DESC } }
+                    first: 50
+                ) {
+                    edges {
+                        node {
+                            Id
+                            Name { value }
+                            Status { value }
+                            DataChangeInformation { value }
+                            DataChangeRecordIdentifier { value }
+                            CreatedDate { value }
+                            CreatedBy {
+                                Name { value }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+`;
+
 export default class LscMobileInline_DCR_Overview extends LightningElement {
     @api recordId;
+    @api mobileHeight = 200;
+    _relatedIds = null;
     dcrs = [];
+    isExpanded = false;
     error;
-    isLoading = true;
-    expandedDcrId = null;
 
-    @wire(getDCRsForAccount, { accountId: '$recordId' })
-    wiredDCRs({ error, data }) {
-        this.isLoading = false;
+    get relatedVars() {
+        if (!this.recordId) return undefined;
+        return { accountId: this.recordId };
+    }
+
+    @wire(graphql, { query: RELATED_QUERY, variables: '$relatedVars' })
+    handleRelatedRecords({ data, errors }) {
         if (data) {
-            this.dcrs = data.map(dcr => this.parseDCR(dcr));
-            this.error = undefined;
-        } else if (error) {
-            this.error = error.body?.message || 'Error loading DCRs';
-            this.dcrs = [];
+            const ids = new Set([this.recordId]);
+            const queries = data.uiapi.query;
+            for (const key of Object.keys(queries)) {
+                queries[key]?.edges?.forEach(edge => {
+                    const id = edge.node?.Id;
+                    if (id) ids.add(id);
+                });
+            }
+            this._relatedIds = [...ids];
+        } else if (errors) {
+            this.error = 'Error loading related records';
         }
     }
 
-    parseDCR(dcr) {
+    get dcrVars() {
+        if (!this._relatedIds || this._relatedIds.length === 0) return undefined;
+        return { ids: this._relatedIds };
+    }
+
+    @wire(graphql, { query: DCR_QUERY, variables: '$dcrVars' })
+    handleDCRs({ data, errors }) {
+        if (data) {
+            this.dcrs = data.uiapi.query.LifeSciDataChangeRequest.edges.map(edge =>
+                this.parseDCR(edge.node)
+            );
+        } else if (errors) {
+            this.error = 'Error loading DCRs';
+        }
+    }
+
+    parseDCR(node) {
         let changes = [];
         let objectLabel = '';
+        const dataChangeInfo = node.DataChangeInformation?.value;
+        const recordIdentifier = node.DataChangeRecordIdentifier?.value;
 
-        if (dcr.DataChangeInformation) {
+        if (dataChangeInfo) {
             try {
-                const info = JSON.parse(dcr.DataChangeInformation);
+                const info = JSON.parse(dataChangeInfo);
                 const oldData = info.oldData || {};
                 const newData = info.newData || {};
                 const allKeys = new Set([...Object.keys(oldData), ...Object.keys(newData)]);
@@ -76,100 +172,46 @@ export default class LscMobileInline_DCR_Overview extends LightningElement {
             } catch (e) { /* ignore parse errors */ }
         }
 
-        if (dcr.DataChangeRecordIdentifier) {
-            const prefix = dcr.DataChangeRecordIdentifier.substring(0, 3);
+        if (recordIdentifier) {
+            const prefix = recordIdentifier.substring(0, 3);
             objectLabel = OBJECT_LABELS[prefix] || prefix;
         }
 
         return {
-            id: dcr.Id,
-            name: dcr.Name,
-            status: dcr.Status,
-            operationType: dcr.OperationType,
-            validationType: dcr.ValidationType,
+            id: node.Id,
+            name: node.Name.value,
+            status: node.Status?.value,
             objectLabel,
-            createdByName: dcr.CreatedBy?.Name,
-            createdDate: dcr.CreatedDate,
+            createdByName: node.CreatedBy?.Name?.value,
+            createdDate: node.CreatedDate?.value,
             changes,
-            changeCount: changes.length,
-            recordUrl: `/${dcr.Id}`,
-            statusVariant: this.getStatusVariant(dcr.Status),
-            statusLabel: this.getStatusLabel(dcr.Status),
-            isPending: dcr.Status === 'NotProcessed'
+            hasChanges: changes.length > 0,
+            recordUrl: `/${node.Id}`,
+            isPending: node.Status?.value === 'NotProcessed'
         };
     }
 
-    getStatusVariant(status) {
-        const map = {
-            NotProcessed: 'warning',
-            Approved: 'success',
-            Rejected: 'error',
-            Failed: 'error',
-            Qualified: 'success',
-            Processed: 'success',
-            NotQualified: 'warning',
-            Retry: 'warning'
-        };
-        return map[status] || 'default';
+    handleToggleAll() {
+        this.isExpanded = !this.isExpanded;
     }
 
-    getStatusLabel(status) {
-        const map = {
-            NotProcessed: 'Pending',
-            Approved: 'Approved',
-            Rejected: 'Rejected',
-            Failed: 'Failed',
-            Qualified: 'Qualified',
-            Processed: 'Processed',
-            NotQualified: 'Not Qualified',
-            Retry: 'Retry'
-        };
-        return map[status] || status;
-    }
-
-    handleToggle(event) {
-        const dcrId = event.currentTarget.dataset.id;
-        this.expandedDcrId = this.expandedDcrId === dcrId ? null : dcrId;
-    }
-
-    get processedDcrs() {
-        return this.dcrs.map(dcr => {
-            const isExpanded = dcr.id === this.expandedDcrId;
-            return {
-                ...dcr,
-                isExpanded,
-                hasChanges: dcr.changes.length > 0,
-                chevronIcon: isExpanded ? 'utility:chevrondown' : 'utility:chevronright'
-            };
-        });
-    }
-
-    get hasDCRs() {
-        return this.dcrs.length > 0;
-    }
-
-    get noResults() {
-        return !this.isLoading && !this.hasDCRs;
+    get pendingDcrs() {
+        return this.dcrs.filter(d => d.isPending);
     }
 
     get pendingCount() {
-        return this.dcrs.filter(d => d.isPending).length;
+        return this.pendingDcrs.length;
     }
 
     get hasPending() {
         return this.pendingCount > 0;
     }
 
-    get cardTitle() {
-        return 'Data Change Requests';
+    get pluralS() {
+        return this.pendingCount === 1 ? '' : 's';
     }
 
-    get summaryText() {
-        const total = this.dcrs.length;
-        const pending = this.pendingCount;
-        if (pending > 0) {
-            return `${pending} pending of ${total} total`;
-        }
-        return `${total} total`;
+    get toggleIcon() {
+        return this.isExpanded ? 'utility:chevronup' : 'utility:chevrondown';
     }
 }

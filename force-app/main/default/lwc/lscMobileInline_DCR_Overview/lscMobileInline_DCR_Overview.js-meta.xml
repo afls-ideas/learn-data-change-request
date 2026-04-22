@@ -6,12 +6,14 @@
     <description>Displays all Data Change Requests related to an Account</description>
     <targets>
         <target>lightning__RecordPage</target>
+        <target>lightning__RecordAction</target>
     </targets>
     <targetConfigs>
         <targetConfig targets="lightning__RecordPage">
             <objects>
                 <object>Account</object>
             </objects>
+            <property name="mobileHeight" type="Integer" label="Mobile Height" default="200" description="Height of the component on mobile devices"/>
         </targetConfig>
     </targetConfigs>
 </LightningComponentBundle>
