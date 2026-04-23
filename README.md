@@ -186,6 +186,8 @@ Objects that need their own RecType mapping:
 
 All of these map to **Account record types** (e.g., Health Care Provider, Health Care Organization), not record types on the target object.
 
+For a detailed guide on Internal vs. External validation paths, external data providers (IQVIA OneKey, Informatica MDM), and mixed validation setups, see [VALIDATION_TYPES.md](VALIDATION_TYPES.md).
+
 ## Setup Checklist
 
 ### 1. Data Change Definitions
@@ -435,5 +437,6 @@ Run via: `sf apex run --file scripts/apex/<script> --target-org 260-pm`
 | Document | Description |
 |---|---|
 | [COMPOUND_FIELDS.md](COMPOUND_FIELDS.md) | Account Name and ContactPointAddress Address compound field handling |
+| [VALIDATION_TYPES.md](VALIDATION_TYPES.md) | Internal vs. External validation, record type routing, IQVIA OneKey/Informatica MDM |
 | [COUNTRY_SCOPING.md](COUNTRY_SCOPING.md) | Global vs. country-scoped fields, multi-country setup, common pitfalls |
 | [LWC_README.md](LWC_README.md) | lscMobileInline_DCR_Overview component documentation |
