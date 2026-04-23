@@ -6,21 +6,13 @@ Salesforce stores certain groups of related fields as a single **compound field*
 
 ## Account: Name
 
-The `Name` field on Account (for Person Accounts) is a compound field that covers:
-
-| Component Field | Example Value |
-|---|---|
-| `FirstName` | Jane |
-| `LastName` | Smith |
-| `MiddleName` | Marie |
-| `Suffix` | Jr. |
-| `Salutation` | Dr. |
+The `Name` field on Account (for Person Accounts) is a compound field. When managed, it covers changes to `FirstName` and `LastName`.
 
 ### How to configure
 
 - Add `Name` as a managed field under the Account data change definition
-- Do **not** add `FirstName`, `LastName`, `MiddleName`, `Suffix`, or `Salutation` individually — the platform will reject them with "Selected field is not in the list"
-- When a user edits any component (e.g., changes `FirstName` from "Jane" to "Janet"), the DCR engine detects the change through the `Name` compound field and generates a DCR
+- Do **not** add `FirstName` or `LastName` individually — the platform will reject them with "Selected field is not in the list". The `Name` managed field already covers both.
+- When a user edits FirstName or LastName, the DCR engine detects the change through the `Name` compound field and generates a DCR
 
 ### What the DCR record looks like
 
@@ -70,7 +62,7 @@ The DCR Field Manager handles compound fields as follows:
 | Field | Behavior in UI |
 |---|---|
 | `Name` (Account) | Appears in field list, can be toggled normally |
-| `FirstName`, `LastName`, etc. | Greyed out, checkbox disabled, hint: "Covered by Name field" |
+| `FirstName`, `LastName` | Greyed out, checkbox disabled, hint: "Covered by Name field" |
 | `Address` (ContactPointAddress) | Appears in field list (special handling for ADDRESS type), can be toggled normally |
 | `City`, `Street`, `PostalCode`, etc. | Greyed out, checkbox disabled, hint: "Covered by Address field" |
 
@@ -80,5 +72,5 @@ When an admin tries to check a component field, a toast message explains which c
 
 | Object | Compound Field | Components Covered | Notes |
 |---|---|---|---|
-| Account | `Name` | FirstName, LastName, MiddleName, Suffix, Salutation | Person Accounts only |
+| Account | `Name` | FirstName, LastName | Person Accounts only |
 | ContactPointAddress | `Address` | Street, City, State, PostalCode, Country, StateCode, CountryCode | ADDRESS field type requires special handling in admin tools |

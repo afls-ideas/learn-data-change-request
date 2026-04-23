@@ -29,10 +29,7 @@ const OBJECT_ICONS = {
 const COMPOUND_FIELD_MAP = {
     Account: {
         FirstName: 'Name',
-        LastName: 'Name',
-        MiddleName: 'Name',
-        Suffix: 'Name',
-        Salutation: 'Name'
+        LastName: 'Name'
     },
     ContactPointAddress: {
         City: 'Address',
