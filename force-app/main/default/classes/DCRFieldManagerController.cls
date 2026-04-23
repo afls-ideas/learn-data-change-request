@@ -88,7 +88,7 @@ public with sharing class DCRFieldManagerController {
 
         String query = 'SELECT Id, LifeSciDataChgDefId, FieldApiName, ShouldApplyChngImmediately, ValidationType, CountryId FROM LifeSciDataChgDefMngFld';
         if (String.isNotBlank(countryId)) {
-            query += ' WHERE CountryId = :countryId';
+            query += ' WHERE CountryId = :countryId OR CountryId = null';
         }
         List<LifeSciDataChgDefMngFld> managedFields = Database.query(query);
 
@@ -173,9 +173,11 @@ public with sharing class DCRFieldManagerController {
                 }
             }
 
+            Set<String> addedFields = new Set<String>();
             for (String fieldName : fieldMap.keySet()) {
                 Schema.DescribeFieldResult dfr = fieldMap.get(fieldName).getDescribe();
-                if (!dfr.isUpdateable() && !dfr.isCreateable()) continue;
+                Boolean isCompoundField = dfr.getType().name() == 'ADDRESS';
+                if (!isCompoundField && !dfr.isUpdateable() && !dfr.isCreateable()) continue;
                 if (dfr.isCalculated()) continue;
 
                 FieldInfo fi = new FieldInfo();
@@ -197,6 +199,24 @@ public with sharing class DCRFieldManagerController {
                 }
 
                 od.fields.add(fi);
+                addedFields.add(dfr.getName());
+            }
+
+            for (String managedFieldName : managed.keySet()) {
+                if (!addedFields.contains(managedFieldName) && fieldMap.containsKey(managedFieldName.toLowerCase())) {
+                    Schema.DescribeFieldResult dfr = fieldMap.get(managedFieldName.toLowerCase()).getDescribe();
+                    FieldInfo fi = new FieldInfo();
+                    fi.apiName = dfr.getName();
+                    fi.label = dfr.getLabel();
+                    fi.type = dfr.getType().name();
+                    LifeSciDataChgDefMngFld mf = managed.get(managedFieldName);
+                    fi.isManaged = true;
+                    fi.managedFieldId = mf.Id;
+                    fi.applyImmediately = mf.ShouldApplyChngImmediately;
+                    fi.validationType = mf.ValidationType;
+                    fi.countryId = mf.CountryId;
+                    od.fields.add(fi);
+                }
             }
 
             od.fields.sort(new FieldInfoComparator());

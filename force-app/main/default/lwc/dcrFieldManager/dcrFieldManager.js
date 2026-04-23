@@ -26,6 +26,25 @@ const OBJECT_ICONS = {
     ProviderAffiliation: 'standard:relationship'
 };
 
+const COMPOUND_FIELD_MAP = {
+    Account: {
+        FirstName: 'Name',
+        LastName: 'Name',
+        MiddleName: 'Name',
+        Suffix: 'Name',
+        Salutation: 'Name'
+    },
+    ContactPointAddress: {
+        City: 'Address',
+        Street: 'Address',
+        PostalCode: 'Address',
+        State: 'Address',
+        Country: 'Address',
+        StateCode: 'Address',
+        CountryCode: 'Address'
+    }
+};
+
 const CHANGE_UPDATE_OPTIONS = [
     { label: 'Do Not Apply Immediately', value: 'DoNotApplyChangesImmediately' },
     { label: 'Apply By Field', value: 'ApplyChangesByField' },
@@ -185,17 +204,38 @@ export default class DcrFieldManager extends LightningElement {
             summary: `${od.managedCount} of ${od.totalCount} fields managed`,
             badgeClass: od.managedCount > 0 ? 'slds-m-left_small badge-active' : 'slds-m-left_small badge-inactive',
             isConfigured: od.hasRecordType,
-            displayFields: filteredFields.map(f => ({
-                ...f,
-                key: od.defId + '_' + f.apiName,
-                defId: od.defId,
-                rowClass: f.isManaged ? 'row-managed' : '',
-                typeLabel: f.type,
-                validationOptions: [
-                    { label: 'Internal', value: 'Internal' },
-                    { label: 'External', value: 'External' }
-                ]
-            }))
+            displayFields: filteredFields.map(f => {
+                const compoundMap = COMPOUND_FIELD_MAP[od.objectName] || {};
+                const compoundParent = compoundMap[f.apiName];
+                const isCompoundComponent = !!compoundParent;
+                const compoundChildren = Object.entries(compoundMap)
+                    .filter(([, parent]) => parent === f.apiName)
+                    .map(([child]) => child);
+                const isCompoundParent = compoundChildren.length > 0;
+                const isGlobal = f.isManaged && !f.countryId;
+                const isCountrySpecific = f.isManaged && !!f.countryId;
+                const showScope = f.isManaged && !!this.selectedCountryId;
+                return {
+                    ...f,
+                    key: od.defId + '_' + f.apiName,
+                    defId: od.defId,
+                    rowClass: f.isManaged ? 'row-managed' : (isCompoundComponent ? 'row-compound' : ''),
+                    typeLabel: f.type,
+                    isCompoundComponent,
+                    compoundHint: isCompoundComponent
+                        ? `Covered by ${compoundParent} field`
+                        : (isCompoundParent ? `Compound field — covers ${compoundChildren.join(', ')}` : ''),
+                    isToggleable: !isCompoundComponent,
+                    showCompoundHint: isCompoundComponent || isCompoundParent,
+                    showScope,
+                    scopeLabel: isGlobal ? 'Global' : (isCountrySpecific ? 'Country' : ''),
+                    scopeClass: isGlobal ? 'scope-badge scope-global' : 'scope-badge scope-country',
+                    validationOptions: [
+                        { label: 'Internal', value: 'Internal' },
+                        { label: 'External', value: 'External' }
+                    ]
+                };
+            })
         };
     }
 
@@ -226,6 +266,14 @@ export default class DcrFieldManager extends LightningElement {
         const defId = event.target.dataset.def;
         const fieldLabel = event.target.dataset.label;
         const managedFieldId = event.target.dataset.managed;
+
+        const compoundMap = COMPOUND_FIELD_MAP[this.selectedObjectName] || {};
+        const compoundParent = compoundMap[fieldApiName];
+        if (compoundParent) {
+            event.target.checked = !checked;
+            this.showToast('Info', `${fieldLabel} is a component of the ${compoundParent} compound field. Enable ${compoundParent} instead.`, 'info');
+            return;
+        }
 
         this.isSaving = true;
         try {

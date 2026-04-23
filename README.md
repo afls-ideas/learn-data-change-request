@@ -209,9 +209,9 @@ Create `LifeSciDataChgDefMngFld` records to define which fields are tracked for 
 7. Repeat for all governed fields
 
 **Important notes on Field API Name:**
-- Compound fields (like `Address` on ContactPointAddress) must be managed as the compound field, not individual components (City, Street, PostalCode are not valid — use `Address` instead)
+- Compound fields (like `Address` on ContactPointAddress and `Name` on Account) must be managed as the compound field, not individual components (City, Street, PostalCode are not valid — use `Address` instead; FirstName, LastName are not valid — use `Name` instead). See [COMPOUND_FIELDS.md](COMPOUND_FIELDS.md) for full details.
 - The picklist only shows fields that belong to the definition's object
-- Not all fields are eligible — only updateable/createable, non-calculated fields appear
+- Not all fields are eligible — only updateable/createable, non-calculated fields appear (exception: compound fields like `Address` are included by the admin LWC despite not being updateable)
 
 **Or use the DCR Field Manager admin LWC** — click an object tile and toggle checkboxes for each field.
 
@@ -228,6 +228,8 @@ Country scoping is optional but affects multiple levels:
 **If a managed field has a country set, it will only trigger DCR for users whose `UserAdditionalInfo.PreferredCountry` matches that country's ISO code.** To make a field universally governed, leave the Country field blank.
 
 **Important:** Even when managed fields and record type mappings have no country set, the user's `PreferredCountry` must still resolve to a valid `LifeSciCountry` record. If the user's `PreferredCountry` is "IN" but no `LifeSciCountry` exists for India, the DCR engine silently skips the record — no DCR is generated and no error is raised.
+
+For a detailed guide on global vs. country-scoped fields, multi-country setup examples, and common pitfalls, see [COUNTRY_SCOPING.md](COUNTRY_SCOPING.md).
 
 ### 6. DCRHandler Trigger Verification
 

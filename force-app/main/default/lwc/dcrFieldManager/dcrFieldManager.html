@@ -139,6 +139,7 @@
                                         <th>Field Label</th>
                                         <th>API Name</th>
                                         <th>Type</th>
+                                        <th style="width:80px">Scope</th>
                                         <th style="width:140px">Validation</th>
                                         <th style="width:80px">Apply Immediately</th>
                                     </tr>
@@ -159,9 +160,19 @@
                                                     label="Toggle DCR"
                                                 ></lightning-input>
                                             </td>
-                                            <td class="field-label">{field.label}</td>
+                                            <td class="field-label">
+                                                {field.label}
+                                                <template lwc:if={field.showCompoundHint}>
+                                                    <span class="compound-hint">{field.compoundHint}</span>
+                                                </template>
+                                            </td>
                                             <td class="field-api">{field.apiName}</td>
                                             <td class="field-type">{field.typeLabel}</td>
+                                            <td>
+                                                <template lwc:if={field.showScope}>
+                                                    <span class={field.scopeClass}>{field.scopeLabel}</span>
+                                                </template>
+                                            </td>
                                             <td>
                                                 <template lwc:if={field.isManaged}>
                                                     <lightning-combobox
