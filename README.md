@@ -155,6 +155,37 @@ You can create **multiple record type mappings** per definition to route differe
 
 When a ContactPointAddress (or any related object) is edited, the DCR engine looks at the **parent Account's record type** to decide which validation path to use. This means the same object definition can produce Internal DCRs for HCP accounts and External DCRs for HCO accounts.
 
+### Validation Type Alignment (Critical)
+
+The `ValidationType` on managed fields must align with the `ValidationType` on the record type mapping. If the record type mapping is `Internal` but a managed field is `External`, the DCR engine silently skips the field — no DCR is generated and no error is raised.
+
+| RecType Mapping ValidationType | Managed Field ValidationType | Result |
+|---|---|---|
+| Internal | Internal | DCR generated |
+| External | External | DCR generated |
+| Internal | External | **No DCR — silent skip** |
+| External | Internal | **No DCR — silent skip** |
+
+**This is the most common reason DCRs fail silently.** When troubleshooting, always verify that managed field validation types match the record type mapping.
+
+### Each Object Needs Its Own Record Type Mapping
+
+Despite the UI showing "Inherits from Account" for related objects, **each object definition needs its own `LifeSciDataChgDefRecType` record** for the DCR trigger to fire. The "inheritance" displayed in the admin LWC is a visual convenience — the underlying engine requires an explicit mapping per definition.
+
+Objects that need their own RecType mapping:
+- Account
+- HealthcareProvider
+- ContactPointAddress
+- ContactPointEmail
+- ContactPointPhone
+- ContactPointSocial
+- BusinessLicense
+- ProviderAffiliation
+- HealthcareProviderNpi
+- HealthcareProviderSpecialty
+
+All of these map to **Account record types** (e.g., Health Care Provider, Health Care Organization), not record types on the target object.
+
 ## Setup Checklist
 
 ### 1. Data Change Definitions
@@ -286,13 +317,15 @@ Once setup is complete:
 If editing a managed field doesn't create a DCR record, check in this order:
 
 1. **LifeSciDataChangeDef active?** — The definition for the object must have `IsActive = true`
-2. **LifeSciDataChgDefRecType exists?** — At least one record type mapping must exist for the definition. Without this, the trigger skips the object entirely. The `RecordTypeId` must be an **Account record type** (e.g., Health Care Provider), not a record type on the target object.
-3. **LifeSciDataChgDefMngFld exists for the field?** — The specific field being changed must have a managed field record under the correct definition.
-4. **Country mismatch on managed field?** — If the managed field has a `CountryId`, the user's `UserAdditionalInfo.PreferredCountry` must match. Remove the country from the managed field to make it universal.
-5. **No matching LifeSciCountry?** — The user's `PreferredCountry` must resolve to a valid `LifeSciCountry` record. If the user's country is "IN" but no `LifeSciCountry` exists for India, DCRs are silently skipped — even when managed fields have no country restriction. Check: `SELECT Id, IsoCode FROM LifeSciCountry` and compare against the user's `UserAdditionalInfo.PreferredCountry`.
-6. **Compound field?** — For ContactPointAddress, you must manage the `Address` compound field, not individual components like `City` or `Street`.
-7. **DCRHandler active?** — Check Admin Console > Trigger Handler Administration
-8. **User has SkipLifeSciencesTriggerHandlers permission?** — The trigger checks this first. Admin users may have this permission enabled, which bypasses all DCR processing.
+2. **LifeSciDataChgDefRecType exists for this object?** — Each object definition needs its own record type mapping. Without this, the trigger skips the object entirely. The `RecordTypeId` must be an **Account record type** (e.g., Health Care Provider), not a record type on the target object. Related objects do NOT inherit the Account mapping — they need their own.
+3. **Validation type mismatch?** — The `ValidationType` on the managed field must match the `ValidationType` on the record type mapping. If the RecType mapping is `Internal` but the managed field is `External` (or vice versa), the DCR engine silently skips the field. **This is the most common silent failure.**
+4. **LifeSciDataChgDefMngFld exists for the field?** — The specific field being changed must have a managed field record under the correct definition.
+5. **Country mismatch on managed field?** — If the managed field has a `CountryId`, the user's `UserAdditionalInfo.PreferredCountry` must match. Remove the country from the managed field to make it universal.
+6. **No matching LifeSciCountry?** — The user's `PreferredCountry` must resolve to a valid `LifeSciCountry` record. If the user's country is "IN" but no `LifeSciCountry` exists for India, DCRs are silently skipped — even when managed fields have no country restriction. Check: `SELECT Id, IsoCode FROM LifeSciCountry` and compare against the user's `UserAdditionalInfo.PreferredCountry`.
+7. **Compound field?** — For ContactPointAddress, you must manage the `Address` compound field, not individual components like `City` or `Street`. For Account, manage `Name` — not `FirstName` or `LastName`.
+8. **Restricted picklist values?** — Some fields like `HealthcareProvider.ProfessionalTitle` are restricted picklists. Valid values are `M.D.`, `D.O.`, `D.D.S`, `Ph.D`, `D.M.V`. Setting an invalid value throws a DML error, not a silent skip.
+9. **DCRHandler active?** — Check Admin Console > Trigger Handler Administration
+10. **User has SkipLifeSciencesTriggerHandlers permission?** — The trigger checks this first. Admin users may have this permission enabled, which bypasses all DCR processing. Test with a non-admin user to confirm.
 
 ## DCR Behavior by Profile Setting
 
@@ -354,3 +387,53 @@ An admin LWC for managing DCR field definitions across all objects. Provides a v
 - Inline controls for Validation Type and Apply Immediately per field
 
 **Access:** Custom tab "DCR Field Manager" with permission set `DCR_Field_Manager_Access`.
+
+## Integration Tests
+
+`DCRIntegrationTest` is an Apex test class that verifies DCR generation across four objects using `System.runAs()` to execute as a non-admin user (Evan Casto — Field Sales Representative profile). Uses `@isTest(SeeAllData=true)` because it relies on live DCR definitions, managed fields, record type mappings, and existing Account/HealthcareProvider/BusinessLicense data.
+
+### Test Methods
+
+| Test Method | Object | Field Changed | What It Verifies |
+|---|---|---|---|
+| `testAccountLastNameDCR` | Account | LastName (via Name compound field) | Compound field DCR generation |
+| `testAccountGenderDCR` | Account | PersonGender | Standard picklist field DCR |
+| `testBusinessLicenseDCR` | BusinessLicense | LicenseNumber | Related object DCR with own RecType mapping |
+| `testHealthcareProviderDCR` | HealthcareProvider | ProfessionalTitle | Restricted picklist field DCR (valid values: M.D., D.O., D.D.S, Ph.D, D.M.V) |
+
+### Running
+
+```bash
+sf apex run test --class-names DCRIntegrationTest --result-format human --synchronous --target-org 260-pm
+```
+
+### Prerequisites
+
+These tests depend on org configuration. If a test fails, verify:
+
+1. The object's `LifeSciDataChangeDef` is active
+2. A `LifeSciDataChgDefRecType` exists for the object (each object needs its own — they don't inherit)
+3. Managed field `ValidationType` matches the RecType mapping `ValidationType` (both must be `Internal` or both `External`)
+4. The test user (Evan) has a `UserAdditionalInfo` record with `PreferredCountry = US`
+5. A `LifeSciCountry` record exists with `IsoCode = US`
+
+### Standalone Test Scripts
+
+For quick ad-hoc testing without the test framework:
+
+| Script | Purpose |
+|---|---|
+| `scripts/apex/test_bl_dcr_setup.apex` | Creates the RecType mapping for BusinessLicense (run once) |
+| `scripts/apex/test_bl_dcr_run.apex` | Updates a BusinessLicense and checks for DCR generation |
+
+Run via: `sf apex run --file scripts/apex/<script> --target-org 260-pm`
+
+**Note:** Anonymous Apex scripts run as the current admin user. If the admin has `SkipLifeSciencesTriggerHandlers` or similar permissions, DCRs won't generate. The `DCRIntegrationTest` class avoids this by using `System.runAs()` with a non-admin user.
+
+## Additional Documentation
+
+| Document | Description |
+|---|---|
+| [COMPOUND_FIELDS.md](COMPOUND_FIELDS.md) | Account Name and ContactPointAddress Address compound field handling |
+| [COUNTRY_SCOPING.md](COUNTRY_SCOPING.md) | Global vs. country-scoped fields, multi-country setup, common pitfalls |
+| [LWC_README.md](LWC_README.md) | lscMobileInline_DCR_Overview component documentation |
