@@ -285,15 +285,22 @@ public with sharing class DCRFieldManagerController {
     @AuraEnabled(cacheable=true)
     public static List<Map<String, String>> getDcrRecordTypes() {
         List<Map<String, String>> result = new List<Map<String, String>>();
-        for (RecordType rt : [SELECT Id, Name FROM RecordType WHERE SobjectType = 'LifeSciDataChangeRequest' ORDER BY Name]) {
+        Set<Id> usedIds = new Set<Id>();
+        for (LifeSciDataChgDefRecType existing : [SELECT RecordTypeId FROM LifeSciDataChgDefRecType]) {
+            usedIds.add(existing.RecordTypeId);
+        }
+        for (RecordType rt : [SELECT Id, Name, SobjectType FROM RecordType WHERE SobjectType = 'Account' ORDER BY Name]) {
             result.add(new Map<String, String>{ 'id' => rt.Id, 'name' => rt.Name });
         }
-        if (result.isEmpty()) {
-            Schema.DescribeSObjectResult dsr = LifeSciDataChangeRequest.SObjectType.getDescribe();
-            List<Schema.RecordTypeInfo> rtInfos = dsr.getRecordTypeInfos();
-            for (Schema.RecordTypeInfo rti : rtInfos) {
-                if (rti.isAvailable() && !rti.isMaster()) {
-                    result.add(new Map<String, String>{ 'id' => rti.getRecordTypeId(), 'name' => rti.getName() });
+        for (Id usedId : usedIds) {
+            Boolean found = false;
+            for (Map<String, String> r : result) {
+                if (r.get('id') == usedId) { found = true; break; }
+            }
+            if (!found) {
+                List<RecordType> rts = [SELECT Id, Name FROM RecordType WHERE Id = :usedId];
+                if (!rts.isEmpty()) {
+                    result.add(new Map<String, String>{ 'id' => rts[0].Id, 'name' => rts[0].Name });
                 }
             }
         }

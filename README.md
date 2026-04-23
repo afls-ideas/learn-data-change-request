@@ -94,6 +94,7 @@ erDiagram
         string ValidationType
         boolean NewRecApprovalRequired
         Id CountryId
+        string ExternalValidationSysName
     }
     LifeSciDataChgPersonaDef {
         Id Id
@@ -122,24 +123,37 @@ The `LifeSciDataChangeRequest` has **no direct Account lookup**. The account rel
 When a user saves a record change, the DCR engine runs in this order:
 
 1. **LifeSciDataChangeDef** — Is there an active definition for this object?
-2. **LifeSciDataChgPersonaDef** — Is the user's profile configured for DCR on this object? What is the `ChangeUpdateType`?
-3. **LifeSciDataChgDefRecType** — Which DCR record type to use? Internal or External validation? Optional country scoping.
-4. **LifeSciDataChgDefMngFld** — Which fields are governed? Only changes to managed fields generate a DCR.
+2. **LifeSciDataChgDefRecType** — Which record type mapping applies? Determines Internal vs External validation path.
+3. **LifeSciDataChgDefMngFld** — Which fields are governed? Only changes to managed fields generate a DCR.
+4. **LifeSciDataChgPersonaDef** — Is there a profile-specific persona? If not, all profiles are included by default.
 5. **LifeSciDataChangeRequest** — A DCR record is created with old/new data in JSON format.
 
-**All four configuration objects must be present for an object to generate DCRs.** Missing any one of them (Definition, Record Type, Persona, or Managed Fields) means no DCR will be created.
+**Minimum required to generate DCRs:** An active `LifeSciDataChangeDef`, at least one `LifeSciDataChgDefRecType`, and at least one `LifeSciDataChgDefMngFld`. Persona definitions are optional — when none exist, all profiles generate DCRs.
 
-## Three-Legged Stool: Why All Three Config Records Matter
+## Configuration Requirements
 
-For DCR to trigger on any object, you need three child records under each `LifeSciDataChangeDef`:
+For DCR to trigger on any object, you need these child records under each `LifeSciDataChangeDef`:
 
-| Config Record | Purpose | Country-Scoped? |
+| Config Record | Purpose | Required? | Country-Scoped? |
+|---|---|---|---|
+| `LifeSciDataChgDefRecType` | Maps an Account record type to a validation path (Internal/External) | **Yes** | Yes (optional `CountryId`) |
+| `LifeSciDataChgDefMngFld` | Defines which specific fields are tracked for changes | **Yes** | Yes (optional `CountryId`) |
+| `LifeSciDataChgPersonaDef` | Restricts or customizes DCR behavior per profile | **No** — defaults to all profiles | No |
+
+**Key insight:** `LifeSciDataChgPersonaDef` is optional. When no persona definition exists for an object, the platform treats all profiles as DCR-enabled. You only need persona definitions when you want to **restrict** which profiles trigger DCRs or **customize** the change update behavior (e.g., apply immediately vs. hold for approval) per profile.
+
+## Record Type Routing (Internal vs External)
+
+The `RecordTypeId` on `LifeSciDataChgDefRecType` refers to **Account record types** (e.g., Health Care Provider, Health Care Organization), not record types on the target object itself. This is because the Account record type determines the validation path for all related objects.
+
+You can create **multiple record type mappings** per definition to route different account types through different validation:
+
+| Account Record Type | Validation Type | External System |
 |---|---|---|
-| `LifeSciDataChgDefRecType` | Maps a DCR record type and validation type (Internal/External) to the definition | Yes (optional `CountryId`) |
-| `LifeSciDataChgPersonaDef` | Maps a user profile to the definition and controls how changes are applied | No |
-| `LifeSciDataChgDefMngFld` | Defines which specific fields are tracked for changes | Yes (optional `CountryId`) |
+| Health Care Provider (HCP) | Internal | — |
+| Health Care Organization (HCO) | External | InformaticaMDM |
 
-**Common pitfall:** Activating a `LifeSciDataChangeDef` and adding managed fields is not enough. Without a `LifeSciDataChgDefRecType` and `LifeSciDataChgPersonaDef`, no DCR will be generated — the trigger silently skips the object.
+When a ContactPointAddress (or any related object) is edited, the DCR engine looks at the **parent Account's record type** to decide which validation path to use. This means the same object definition can produce Internal DCRs for HCP accounts and External DCRs for HCO accounts.
 
 ## Setup Checklist
 
@@ -151,21 +165,23 @@ Activate Data Change Definitions for each object you want DCR to govern:
 
 ### 2. Record Type Definitions (REQUIRED)
 
-Create `LifeSciDataChgDefRecType` records to map each definition to a DCR record type. This tells the platform which record type to stamp on new DCR records and whether to use Internal or External validation.
+Create `LifeSciDataChgDefRecType` records to map each definition to an Account record type. This tells the platform which validation path to use (Internal vs External) based on the Account's record type.
 
 **Steps:**
 1. App Launcher > **Life Science Data Change Definition Record Types** > New
 2. Select the parent Data Change Definition (e.g., ContactPointAddress)
-3. Select the DCR Record Type (from `LifeSciDataChangeRequest` record types)
+3. Select the Account Record Type (e.g., Health Care Provider or Health Care Organization)
 4. Set Validation Type: `Internal` or `External`
-5. Optionally set Country (only DCRs for records in that country will use this mapping)
-6. Set "Is New Record Approval Required" as needed
+5. If External, set the External Validation System Name (e.g., "InformaticaMDM")
+6. Optionally set Country (only DCRs for records in that country will use this mapping)
+7. Set "Is New Record Approval Required" as needed
+8. Repeat for each Account record type that needs a different validation path
 
 **Or use the DCR Field Manager admin LWC** (see below) — click an object tile and use the "Add Record Type" button.
 
-### 3. Persona Definitions (REQUIRED)
+### 3. Persona Definitions (OPTIONAL)
 
-Create `LifeSciDataChgPersonaDef` records to define which user profiles trigger DCR processing and how their changes are handled.
+Create `LifeSciDataChgPersonaDef` records to customize which user profiles trigger DCR processing and how their changes are handled. **When no persona definition exists, all profiles generate DCRs.**
 
 **Steps:**
 1. App Launcher > **Life Science Data Change Persona Definitions** > New
@@ -177,7 +193,7 @@ Create `LifeSciDataChgPersonaDef` records to define which user profiles trigger 
    - `ApplyChangesByField` — Per-field control using each managed field's "Apply Immediately" setting
 5. Set IsActive = true
 
-**Or use the DCR Field Manager admin LWC** — click an object tile and use the "Add Persona" button.
+**Or use the DCR Field Manager admin LWC** — click an object tile and use the "Add Profile" button.
 
 ### 4. Managed Fields (REQUIRED)
 
@@ -255,7 +271,7 @@ After creating/verifying, **regenerate the metadata cache**.
 
 Once setup is complete:
 
-1. **Log in as a user** whose profile has a Persona Definition with "Don't apply changes immediately"
+1. **Log in as a user** with any profile (or a profile specified in a Persona Definition)
 2. **Edit a record** on a DCR-enabled object — change a field that has a managed field definition
 3. **Save** — the system creates a `LifeSciDataChangeRequest` record automatically
 4. **On mobile**: Update records via Account Details, Related tab, or Bulk Updates — changes sync and create DCRs
@@ -266,18 +282,18 @@ Once setup is complete:
 If editing a managed field doesn't create a DCR record, check in this order:
 
 1. **LifeSciDataChangeDef active?** — The definition for the object must have `IsActive = true`
-2. **LifeSciDataChgDefRecType exists?** — At least one record type mapping must exist for the definition. Without this, the trigger skips the object entirely.
-3. **LifeSciDataChgPersonaDef exists and active?** — A persona definition must exist for the definition, matching the user's profile (or with null ProfileId for "all profiles"). Must have `IsActive = true`.
-4. **LifeSciDataChgDefMngFld exists for the field?** — The specific field being changed must have a managed field record under the correct definition.
-5. **Country mismatch?** — If the managed field has a `CountryId`, the user's `UserAdditionalInfo.PreferredCountry` must match. Remove the country from the managed field to make it universal.
-6. **Compound field?** — For ContactPointAddress, you must manage the `Address` compound field, not individual components like `City` or `Street`.
-7. **DCRHandler active?** — Check Admin Console > Trigger Handler Administration
-8. **User has SkipLifeSciencesTriggerHandlers permission?** — The trigger checks this first. Admin users may have this permission enabled, which bypasses all DCR processing.
+2. **LifeSciDataChgDefRecType exists?** — At least one record type mapping must exist for the definition. Without this, the trigger skips the object entirely. The `RecordTypeId` must be an **Account record type** (e.g., Health Care Provider), not a record type on the target object.
+3. **LifeSciDataChgDefMngFld exists for the field?** — The specific field being changed must have a managed field record under the correct definition.
+4. **Country mismatch?** — If the managed field has a `CountryId`, the user's `UserAdditionalInfo.PreferredCountry` must match. Remove the country from the managed field to make it universal.
+5. **Compound field?** — For ContactPointAddress, you must manage the `Address` compound field, not individual components like `City` or `Street`.
+6. **DCRHandler active?** — Check Admin Console > Trigger Handler Administration
+7. **User has SkipLifeSciencesTriggerHandlers permission?** — The trigger checks this first. Admin users may have this permission enabled, which bypasses all DCR processing.
 
 ## DCR Behavior by Profile Setting
 
 | Setting | Web Behavior | Mobile Behavior |
 |---|---|---|
+| No persona definition | All profiles generate DCRs with default behavior | All profiles generate DCRs with default behavior |
 | Don't apply changes immediately | DCR sent for approval first | Changes appear after approval + next sync |
 | Apply changes immediately | Changes applied; DCR created for review | Changes applied immediately; reverted on next sync if rejected |
 | Apply changes to each field individually | Per-field control via managed field config | Per-field control via managed field config |
@@ -321,14 +337,15 @@ See the full component documentation: [LWC_README.md](LWC_README.md)
 
 ### dcrFieldManager
 
-An admin LWC for managing DCR field definitions across all objects. Provides a visual tile-based UI showing which objects are fully configured (Record Type + Persona + Managed Fields) and allows toggling individual fields on/off.
+An admin LWC for managing DCR field definitions across all objects. Provides a visual tile-based UI showing which objects have DCR enabled and allows toggling individual fields on/off.
 
 **Features:**
 - Country filter at the top
-- Object tiles with configuration status indicators (green = configured, orange = missing config)
-- Check/X icons showing Record Type and Persona status per object
+- Object tiles showing DCR status: lock icon + "DCR Enabled" with green left border when configured, "DCR Not Enabled" when missing record type mapping
+- Grey chips showing Record Type and Profile assignments per object
 - Click a tile to see all fields with checkboxes to toggle DCR governance
-- Add/remove Record Type mappings and Persona Definitions directly from the UI
+- Add/remove Record Type mappings (Account record types) directly from the UI
+- Add/remove Profile assignments (persona definitions) from the UI
 - Inline controls for Validation Type and Apply Immediately per field
 
 **Access:** Custom tab "DCR Field Manager" with permission set `DCR_Field_Manager_Access`.

@@ -33,17 +33,15 @@
                             </div>
                             <div class="tile-body">
                                 <span class="tile-name">{obj.objectName}</span>
-                                <span class="tile-count">{obj.summary}</span>
+                                <div class="tile-status-row">
+                                    <template lwc:if={obj.isConfigured}>
+                                        <lightning-icon icon-name="utility:lock" size="xx-small" class="lock-icon"></lightning-icon>
+                                    </template>
+                                    <span class={obj.statusClass}>{obj.summary}</span>
+                                </div>
                                 <div class="tile-config">
-                                    <template for:each={obj.configIcons} for:item="ci">
-                                        <lightning-icon
-                                            key={ci.key}
-                                            icon-name={ci.icon}
-                                            size="xx-small"
-                                            variant={ci.variant}
-                                            title={ci.title}
-                                            class="config-icon"
-                                        ></lightning-icon>
+                                    <template for:each={obj.configItems} for:item="ci">
+                                        <span key={ci.key} class={ci.chipClass}>{ci.label}</span>
                                     </template>
                                 </div>
                             </div>
@@ -94,7 +92,7 @@
                                     </template>
                                 </div>
                                 <div class="config-item">
-                                    <span class="config-label">Personas:</span>
+                                    <span class="config-label">Profiles:</span>
                                     <template lwc:if={selectedObject.hasPersonaDef}>
                                         <template for:each={selectedObject.personas} for:item="p">
                                             <span key={p.id} class="persona-chip">
@@ -111,7 +109,7 @@
                                         </template>
                                     </template>
                                     <lightning-button
-                                        label="Add Persona"
+                                        label="Add Profile"
                                         variant="neutral"
                                         size="small"
                                         data-def={selectedObject.defId}
@@ -249,7 +247,7 @@
                         onclick={handleClosePersonaModal}
                         class="slds-modal__close"
                     ></lightning-button-icon>
-                    <h2 class="slds-modal__title">Add Persona Definition</h2>
+                    <h2 class="slds-modal__title">Add Profile</h2>
                 </div>
                 <div class="slds-modal__content slds-p-around_medium">
                     <lightning-combobox

@@ -111,44 +111,48 @@ export default class DcrFieldManager extends LightningElement {
     get processedObjects() {
         return this.objectDefs.map(od => {
             const isSelected = od.objectName === this.selectedObjectName;
-            const isConfigured = od.hasRecordType && od.hasPersonaDef;
+            const isConfigured = od.hasRecordType;
             let statusLabel;
             if (isConfigured) {
-                statusLabel = od.managedCount > 0 ? `${od.managedCount} managed` : 'Configured';
+                statusLabel = od.managedCount > 0
+                    ? `DCR Enabled — ${od.managedCount} field${od.managedCount > 1 ? 's' : ''} managed`
+                    : 'DCR Enabled — no fields managed';
             } else {
-                statusLabel = 'Not configured';
+                statusLabel = 'DCR Not Enabled';
             }
             return {
                 ...od,
                 iconName: OBJECT_ICONS[od.objectName] || 'standard:custom',
                 summary: statusLabel,
-                tileClass: isSelected
-                    ? 'tile tile-selected'
-                    : (isConfigured ? 'tile tile-active' : 'tile tile-unconfigured'),
+                statusClass: isConfigured ? 'tile-status tile-status-on' : 'tile-status tile-status-off',
+                tileClass: isSelected ? 'tile tile-selected' : (isConfigured ? 'tile tile-active' : 'tile'),
                 badgeClass: isConfigured
                     ? 'slds-m-left_small badge-active'
                     : 'slds-m-left_small badge-inactive',
                 isConfigured,
-                configIcons: this.getConfigIcons(od)
+                configItems: this.getConfigItems(od)
             };
         });
     }
 
-    getConfigIcons(od) {
-        const icons = [];
-        icons.push({
+    getConfigItems(od) {
+        const items = [];
+        items.push({
             key: 'rt',
-            icon: od.hasRecordType ? 'utility:check' : 'utility:close',
-            variant: od.hasRecordType ? 'success' : 'error',
-            title: od.hasRecordType ? 'Record Type mapped' : 'No Record Type'
+            label: od.hasRecordType ? 'Record Type' : 'No Record Type',
+            chipClass: od.hasRecordType ? 'config-chip config-chip-ok' : 'config-chip config-chip-missing'
         });
-        icons.push({
+        let profileLabel = 'All Profiles';
+        if (od.hasPersonaDef) {
+            const names = od.personas.map(p => p.profileName);
+            profileLabel = names.join(', ');
+        }
+        items.push({
             key: 'pd',
-            icon: od.hasPersonaDef ? 'utility:check' : 'utility:close',
-            variant: od.hasPersonaDef ? 'success' : 'error',
-            title: od.hasPersonaDef ? 'Persona defined' : 'No Persona'
+            label: profileLabel,
+            chipClass: 'config-chip config-chip-ok'
         });
-        return icons;
+        return items;
     }
 
     get selectedObject() {
@@ -170,7 +174,7 @@ export default class DcrFieldManager extends LightningElement {
             managedCount: od.managedCount,
             summary: `${od.managedCount} of ${od.totalCount} fields managed`,
             badgeClass: od.managedCount > 0 ? 'slds-m-left_small badge-active' : 'slds-m-left_small badge-inactive',
-            isConfigured: od.hasRecordType && od.hasPersonaDef,
+            isConfigured: od.hasRecordType,
             displayFields: filteredFields.map(f => ({
                 ...f,
                 key: od.defId + '_' + f.apiName,
@@ -298,6 +302,10 @@ export default class DcrFieldManager extends LightningElement {
     }
 
     async handleSaveRecordType() {
+        if (!this.modalRecordTypeId) {
+            this.showToast('Error', 'Please select a Record Type', 'error');
+            return;
+        }
         this.isSaving = true;
         this.showRecordTypeModal = false;
         try {
@@ -359,10 +367,10 @@ export default class DcrFieldManager extends LightningElement {
                 profileId: this.modalProfileId || null,
                 changeUpdateType: this.modalChangeUpdateType
             });
-            this.showToast('Success', 'Persona definition added', 'success');
+            this.showToast('Success', 'Profile added', 'success');
             await refreshApex(this._wiredDefsResult);
         } catch (error) {
-            this.showToast('Error', error.body?.message || 'Failed to add Persona', 'error');
+            this.showToast('Error', error.body?.message || 'Failed to add Profile', 'error');
         } finally {
             this.isSaving = false;
         }
@@ -374,7 +382,7 @@ export default class DcrFieldManager extends LightningElement {
         this.isSaving = true;
         try {
             await removePersonaDef({ personaDefId });
-            this.showToast('Success', 'Persona definition removed', 'success');
+            this.showToast('Success', 'Profile removed', 'success');
             await refreshApex(this._wiredDefsResult);
         } catch (error) {
             this.showToast('Error', error.body?.message || 'Failed to remove', 'error');
