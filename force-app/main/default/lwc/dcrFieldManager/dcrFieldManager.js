@@ -109,9 +109,12 @@ export default class DcrFieldManager extends LightningElement {
     }
 
     get processedObjects() {
+        const accountHasRecordType = this.objectDefs.some(o => o.objectName === 'Account' && o.hasRecordType);
         return this.objectDefs.map(od => {
             const isSelected = od.objectName === this.selectedObjectName;
-            const isConfigured = od.hasRecordType;
+            const hasOwnRecordType = od.hasRecordType;
+            const inheritsRecordType = !hasOwnRecordType && accountHasRecordType && od.objectName !== 'Account';
+            const isConfigured = hasOwnRecordType || inheritsRecordType;
             let statusLabel;
             if (isConfigured) {
                 statusLabel = od.managedCount > 0
@@ -130,17 +133,24 @@ export default class DcrFieldManager extends LightningElement {
                     ? 'slds-m-left_small badge-active'
                     : 'slds-m-left_small badge-inactive',
                 isConfigured,
-                configItems: this.getConfigItems(od)
+                inheritsRecordType,
+                configItems: this.getConfigItems(od, inheritsRecordType)
             };
         });
     }
 
-    getConfigItems(od) {
+    getConfigItems(od, inheritsRecordType) {
         const items = [];
+        let rtLabel = 'No Record Type';
+        if (od.hasRecordType) {
+            rtLabel = 'Record Type';
+        } else if (inheritsRecordType) {
+            rtLabel = 'Inherits from Account';
+        }
         items.push({
             key: 'rt',
-            label: od.hasRecordType ? 'Record Type' : 'No Record Type',
-            chipClass: od.hasRecordType ? 'config-chip config-chip-ok' : 'config-chip config-chip-missing'
+            label: rtLabel,
+            chipClass: 'config-chip'
         });
         let profileLabel = 'All Profiles';
         if (od.hasPersonaDef) {
@@ -150,7 +160,7 @@ export default class DcrFieldManager extends LightningElement {
         items.push({
             key: 'pd',
             label: profileLabel,
-            chipClass: 'config-chip config-chip-ok'
+            chipClass: 'config-chip'
         });
         return items;
     }

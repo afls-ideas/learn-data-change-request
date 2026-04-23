@@ -227,6 +227,8 @@ Country scoping is optional but affects multiple levels:
 
 **If a managed field has a country set, it will only trigger DCR for users whose `UserAdditionalInfo.PreferredCountry` matches that country's ISO code.** To make a field universally governed, leave the Country field blank.
 
+**Important:** Even when managed fields and record type mappings have no country set, the user's `PreferredCountry` must still resolve to a valid `LifeSciCountry` record. If the user's `PreferredCountry` is "IN" but no `LifeSciCountry` exists for India, the DCR engine silently skips the record — no DCR is generated and no error is raised.
+
 ### 6. DCRHandler Trigger Verification
 
 Confirm the DCRHandler trigger handler is active:
@@ -239,9 +241,9 @@ DCRHandler should be active by default.
 
 Create `UserAdditionalInfo` records for authenticated users with:
 - Preferred country (`PreferredCountry` picklist — e.g., "US")
-- Associated `LifeSciCountry` records
+- The `PreferredCountry` value **must match** an existing `LifeSciCountry` ISO code. If no matching `LifeSciCountry` record exists, DCRs will not be generated for that user — even when managed fields have no country restriction.
 
-This is required for country-specific validation routing and country-scoped managed fields.
+This is required for country-specific validation routing and is validated by the DCR engine at runtime.
 
 ### 8. DCR Approval Tab
 
@@ -284,10 +286,11 @@ If editing a managed field doesn't create a DCR record, check in this order:
 1. **LifeSciDataChangeDef active?** — The definition for the object must have `IsActive = true`
 2. **LifeSciDataChgDefRecType exists?** — At least one record type mapping must exist for the definition. Without this, the trigger skips the object entirely. The `RecordTypeId` must be an **Account record type** (e.g., Health Care Provider), not a record type on the target object.
 3. **LifeSciDataChgDefMngFld exists for the field?** — The specific field being changed must have a managed field record under the correct definition.
-4. **Country mismatch?** — If the managed field has a `CountryId`, the user's `UserAdditionalInfo.PreferredCountry` must match. Remove the country from the managed field to make it universal.
-5. **Compound field?** — For ContactPointAddress, you must manage the `Address` compound field, not individual components like `City` or `Street`.
-6. **DCRHandler active?** — Check Admin Console > Trigger Handler Administration
-7. **User has SkipLifeSciencesTriggerHandlers permission?** — The trigger checks this first. Admin users may have this permission enabled, which bypasses all DCR processing.
+4. **Country mismatch on managed field?** — If the managed field has a `CountryId`, the user's `UserAdditionalInfo.PreferredCountry` must match. Remove the country from the managed field to make it universal.
+5. **No matching LifeSciCountry?** — The user's `PreferredCountry` must resolve to a valid `LifeSciCountry` record. If the user's country is "IN" but no `LifeSciCountry` exists for India, DCRs are silently skipped — even when managed fields have no country restriction. Check: `SELECT Id, IsoCode FROM LifeSciCountry` and compare against the user's `UserAdditionalInfo.PreferredCountry`.
+6. **Compound field?** — For ContactPointAddress, you must manage the `Address` compound field, not individual components like `City` or `Street`.
+7. **DCRHandler active?** — Check Admin Console > Trigger Handler Administration
+8. **User has SkipLifeSciencesTriggerHandlers permission?** — The trigger checks this first. Admin users may have this permission enabled, which bypasses all DCR processing.
 
 ## DCR Behavior by Profile Setting
 
