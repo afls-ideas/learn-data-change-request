@@ -452,5 +452,6 @@ Run via: `sf apex run --file scripts/apex/<script> --target-org 260-pm`
 | [COMPOUND_FIELDS.md](COMPOUND_FIELDS.md) | Account Name and ContactPointAddress Address compound field handling |
 | [VALIDATION_TYPES.md](VALIDATION_TYPES.md) | Internal vs. External validation, detailed routing logic, IQVIA OneKey integration |
 | [VALIDATE_CONFIG.md](VALIDATE_CONFIG.md) | Automated validation checks for silent DCR failures — validation type mismatches and parent-child alignment |
+| [DEVICE_SYNC_DCR_BLOCKING.md](DEVICE_SYNC_DCR_BLOCKING.md) | DeviceSyncTransactionRecord silently blocks DCR generation for accounts edited via mobile — root cause analysis and workaround |
 | [COUNTRY_SCOPING.md](COUNTRY_SCOPING.md) | Global vs. country-scoped fields, multi-country setup, common pitfalls |
 | [LWC_README.md](LWC_README.md) | lscMobileInline_DCR_Overview component documentation |
