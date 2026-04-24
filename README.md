@@ -274,6 +274,26 @@ Country scoping is optional but affects multiple levels:
 
 **Important:** Even when managed fields and record type mappings have no country set, the user's `PreferredCountry` must still resolve to a valid `LifeSciCountry` record. If the user's `PreferredCountry` is "IN" but no `LifeSciCountry` exists for India, the DCR engine silently skips the record — no DCR is generated and no error is raised.
 
+#### Adding Countries
+
+Countries are stored in the `LifeSciCountry` object. The DCR engine, Admin Console, and DCR Field Manager all read from this table.
+
+**UI:** App Launcher > Life Science Countries > New
+
+**CLI:**
+```bash
+sf data create record -s LifeSciCountry \
+  -v "MasterLabel='Canada' IsoCode='CA' DeveloperName='Canada'" \
+  -o <org-alias>
+```
+
+Each record requires:
+- `MasterLabel` — display name (e.g., "Canada")
+- `IsoCode` — ISO 3166-1 alpha-2 code (e.g., "CA")
+- `DeveloperName` — unique API name (e.g., "Canada", use underscores for spaces)
+
+After adding a country, it appears in the Country dropdown on record type mappings, managed fields, and the DCR Field Manager LWC.
+
 For a detailed guide on global vs. country-scoped fields, multi-country setup examples, and common pitfalls, see [COUNTRY_SCOPING.md](COUNTRY_SCOPING.md).
 
 ### 6. DCRHandler Trigger Verification

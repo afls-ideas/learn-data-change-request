@@ -233,19 +233,17 @@ export default class DcrFieldManager extends LightningElement {
     }
 
     get processedObjects() {
-        const accountHasRecordType = this.objectDefs.some(o => o.objectName === 'Account' && o.hasRecordType);
         return this.objectDefs.map(od => {
             const isSelected = od.objectName === this.selectedObjectName;
             const hasOwnRecordType = od.hasRecordType;
-            const inheritsRecordType = !hasOwnRecordType && accountHasRecordType && od.objectName !== 'Account';
-            const isConfigured = hasOwnRecordType || inheritsRecordType;
+            const isConfigured = hasOwnRecordType;
             let statusLabel;
             if (isConfigured) {
                 statusLabel = od.managedCount > 0
                     ? `DCR Enabled — ${od.managedCount} field${od.managedCount > 1 ? 's' : ''} managed`
                     : 'DCR Enabled — no fields managed';
             } else {
-                statusLabel = 'DCR Not Enabled';
+                statusLabel = 'No Record Type Mapping — DCR will not trigger';
             }
             return {
                 ...od,
@@ -257,20 +255,14 @@ export default class DcrFieldManager extends LightningElement {
                     ? 'slds-m-left_small badge-active'
                     : 'slds-m-left_small badge-inactive',
                 isConfigured,
-                inheritsRecordType,
-                configItems: this.getConfigItems(od, inheritsRecordType)
+                configItems: this.getConfigItems(od)
             };
         });
     }
 
-    getConfigItems(od, inheritsRecordType) {
+    getConfigItems(od) {
         const items = [];
-        let rtLabel = 'No Record Type';
-        if (od.hasRecordType) {
-            rtLabel = 'Record Type';
-        } else if (inheritsRecordType) {
-            rtLabel = 'Inherits from Account';
-        }
+        const rtLabel = od.hasRecordType ? 'Record Type' : 'No Record Type';
         items.push({
             key: 'rt',
             label: rtLabel,
