@@ -118,6 +118,18 @@ erDiagram
 
 The `LifeSciDataChangeRequest` has **no direct Account lookup**. The account relationship is indirect -- `DataChangeRecordIdentifier` stores the ID of the changed record (e.g., a HealthcareProvider), and the `DataChangeInformation` JSON contains the `accountid` field within the old/new data payloads.
 
+## DCR Object Reference
+
+| Object | UI Location | Storage Type |
+|---|---|---|
+| `LifeSciDataChangeDef` | Admin Console > Account Management > Data Change Request > Object Status | Salesforce data record |
+| `LifeSciDataChgDefRecType` | Admin Console > Account Management > Data Change Request > click an object tile > Record Type section; or App Launcher > Life Science Data Change Definition Record Types | Salesforce data record |
+| `LifeSciDataChgDefMngFld` | Admin Console > Account Management > Data Change Request > click an object tile > field checkboxes; or App Launcher > Life Science Data Change Definition Managed Fields | Salesforce data record |
+| `LifeSciDataChgPersonaDef` | Admin Console > Account Management > Data Change Request > click an object tile > Profile section; or App Launcher > Life Science Data Change Persona Definitions | Salesforce data record |
+| `LifeSciDataChangeRequest` | DCR Approval tab (`lsc4ce:dataChangeListWithApproveReject`); or directly on Account record page via `lscMobileInline_DCR_Overview` LWC | Salesforce data record (transactional) |
+
+All five objects are standard Salesforce data records (not metadata/custom metadata types). They are queried via SOQL and can be created, updated, and deleted through standard DML. The `LifeSciDataChangeDef` records are pre-seeded per supported object and toggled active/inactive via the Admin Console — they are not created manually.
+
 ## How DCR Works (Trigger Flow)
 
 When a user saves a record change, the DCR engine runs in this order:
