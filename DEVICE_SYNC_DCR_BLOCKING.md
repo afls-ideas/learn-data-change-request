@@ -64,15 +64,19 @@ The trigger runs 10-12 SOQLs for blocked accounts vs 22+ for accounts that gener
 
 For blocked accounts, the trigger stops here (0 DML). For unblocked accounts, the trigger continues with 10+ more queries and creates the DCR (1 DML).
 
-## Potential Workaround
+## Workaround (Tested)
 
-Deleting the `DeviceSyncTransactionRecord` entries for an Account may unblock DCR generation, but this has not been tested and may affect mobile sync behavior:
+Deleting the `DeviceSyncTransactionRecord` entries for an Account unblocks DCR generation. Tested on Sheela Reddy (`001Hs00005uBkN3IAK`) — after deleting 2 records, modifying LastName immediately generated a DCR.
 
-```sql
--- CAUTION: may affect mobile sync
-DELETE FROM DeviceSyncTransactionRecord
-WHERE ProcessedRecordIdentifier = '<AccountId>'
+```apex
+List<DeviceSyncTransactionRecord> records = [
+    SELECT Id FROM DeviceSyncTransactionRecord
+    WHERE ProcessedRecordIdentifier = '<AccountId>'
+];
+delete records;
 ```
+
+**Note:** This may affect mobile sync behavior for the Account. The record will be recreated the next time the Account is edited from the mobile app.
 
 ## Related
 
