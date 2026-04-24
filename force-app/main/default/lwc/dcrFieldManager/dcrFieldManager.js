@@ -5,11 +5,13 @@ import addManagedField from '@salesforce/apex/DCRFieldManagerController.addManag
 import removeManagedField from '@salesforce/apex/DCRFieldManagerController.removeManagedField';
 import updateManagedField from '@salesforce/apex/DCRFieldManagerController.updateManagedField';
 import addRecordTypeMapping from '@salesforce/apex/DCRFieldManagerController.addRecordTypeMapping';
+import updateRecordTypeMapping from '@salesforce/apex/DCRFieldManagerController.updateRecordTypeMapping';
 import removeRecordTypeMapping from '@salesforce/apex/DCRFieldManagerController.removeRecordTypeMapping';
 import addPersonaDef from '@salesforce/apex/DCRFieldManagerController.addPersonaDef';
 import removePersonaDef from '@salesforce/apex/DCRFieldManagerController.removePersonaDef';
 import getDcrRecordTypes from '@salesforce/apex/DCRFieldManagerController.getDcrRecordTypes';
 import getProfiles from '@salesforce/apex/DCRFieldManagerController.getProfiles';
+import validateConfig from '@salesforce/apex/DCRFieldManagerController.validateConfig';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import { refreshApex } from '@salesforce/apex';
 
@@ -59,6 +61,9 @@ export default class DcrFieldManager extends LightningElement {
     searchTerm = '';
     dcrRecordTypes = [];
     profiles = [];
+    activeStep = 'objectsAndRecTypes';
+    isValidating = false;
+    _validationResults = [];
 
     showRecordTypeModal = false;
     showPersonaModal = false;
@@ -86,6 +91,109 @@ export default class DcrFieldManager extends LightningElement {
     get profileOptions() {
         const opts = [{ label: 'All Profiles', value: '' }];
         return opts.concat(this.profiles.map(p => ({ label: p.name, value: p.id })));
+    }
+
+    // Step navigation
+    get isObjectsStep() {
+        return this.activeStep === 'objectsAndRecTypes';
+    }
+
+    get isManagedFieldsStep() {
+        return this.activeStep === 'managedFields';
+    }
+
+    get isValidateStep() {
+        return this.activeStep === 'validateConfig';
+    }
+
+    get stepObjectsClass() {
+        const step = this.activeStep;
+        if (step === 'objectsAndRecTypes') return 'step-item step-item-active';
+        return 'step-item step-item-complete';
+    }
+
+    get stepFieldsClass() {
+        const step = this.activeStep;
+        if (step === 'managedFields') return 'step-item step-item-active';
+        if (step === 'validateConfig') return 'step-item step-item-complete';
+        return 'step-item';
+    }
+
+    get stepValidateClass() {
+        return this.activeStep === 'validateConfig'
+            ? 'step-item step-item-active'
+            : 'step-item';
+    }
+
+    handleStepClick(event) {
+        const step = event.currentTarget.dataset.step;
+        this.activeStep = step;
+        if (step === 'objectsAndRecTypes') {
+            this.selectedObjectName = null;
+            this.searchTerm = '';
+        }
+    }
+
+    async handleRecTypeMappingValidationChange(event) {
+        const mappingId = event.target.dataset.mappingid;
+        const validationType = event.detail.value;
+        this.isSaving = true;
+        try {
+            await updateRecordTypeMapping({ recTypeMappingId: mappingId, validationType });
+            this.showToast('Success', 'Validation type updated', 'success');
+            await refreshApex(this._wiredDefsResult);
+        } catch (error) {
+            this.showToast('Error', error.body?.message || 'Update failed', 'error');
+        } finally {
+            this.isSaving = false;
+        }
+    }
+
+    // Objects & RecordTypes view
+    get configuredObjects() {
+        return this._enrichedObjects().filter(o => o.hasRecordType);
+    }
+
+    get unconfiguredObjects() {
+        return this._enrichedObjects().filter(o => !o.hasRecordType);
+    }
+
+    get hasConfiguredObjects() {
+        return this.configuredObjects.length > 0;
+    }
+
+    get hasUnconfiguredObjects() {
+        return this.unconfiguredObjects.length > 0;
+    }
+
+    get configuredCount() {
+        return this.configuredObjects.length;
+    }
+
+    get unconfiguredCount() {
+        return this.unconfiguredObjects.length;
+    }
+
+    _enrichedObjects() {
+        return this.objectDefs.map(od => {
+            const mappings = (od.recordTypeMappings || []).map(rtm => ({
+                ...rtm,
+                validationOptions: [
+                    { label: 'Internal', value: 'Internal' },
+                    { label: 'External', value: 'External' }
+                ],
+                countryLabel: rtm.countryId ? '' : null
+            }));
+            return {
+                ...od,
+                iconName: OBJECT_ICONS[od.objectName] || 'standard:custom',
+                recordTypeMappings: mappings,
+                managedCount: od.managedCount || 0,
+                managedPlural: (od.managedCount || 0) === 1 ? '' : 's',
+                personaCount: od.personas ? od.personas.length : 0,
+                personaPlural: od.personas && od.personas.length === 1 ? '' : 's'
+            };
+        });
     }
 
     @wire(getCountries)
@@ -443,6 +551,43 @@ export default class DcrFieldManager extends LightningElement {
             this.showToast('Error', error.body?.message || 'Failed to remove', 'error');
         } finally {
             this.isSaving = false;
+        }
+    }
+
+    // Validate Config
+    get hasValidationResults() {
+        return this._validationResults.length > 0;
+    }
+
+    get validationResults() {
+        const iconMap = {
+            error: 'utility:error',
+            warning: 'utility:warning',
+            success: 'utility:success'
+        };
+        const iconClassMap = {
+            error: 'vr-icon-error',
+            warning: 'vr-icon-warning',
+            success: 'vr-icon-success'
+        };
+        return this._validationResults.map((vr, idx) => ({
+            ...vr,
+            key: 'vr-' + idx,
+            iconName: iconMap[vr.severity] || 'utility:info',
+            iconClass: iconClassMap[vr.severity] || '',
+            rowClass: 'vr-row vr-row-' + vr.severity
+        }));
+    }
+
+    async handleRunValidation() {
+        this.isValidating = true;
+        this._validationResults = [];
+        try {
+            this._validationResults = await validateConfig();
+        } catch (error) {
+            this.showToast('Error', error.body?.message || 'Validation failed', 'error');
+        } finally {
+            this.isValidating = false;
         }
     }
 

@@ -451,5 +451,6 @@ Run via: `sf apex run --file scripts/apex/<script> --target-org 260-pm`
 | [LifeSciDataChgDefRecType.md](LifeSciDataChgDefRecType.md) | Why HCP/HCO use External validation and custom record types use Internal — business rationale and Admin Console setup |
 | [COMPOUND_FIELDS.md](COMPOUND_FIELDS.md) | Account Name and ContactPointAddress Address compound field handling |
 | [VALIDATION_TYPES.md](VALIDATION_TYPES.md) | Internal vs. External validation, detailed routing logic, IQVIA OneKey integration |
+| [VALIDATE_CONFIG.md](VALIDATE_CONFIG.md) | Automated validation checks for silent DCR failures — validation type mismatches and parent-child alignment |
 | [COUNTRY_SCOPING.md](COUNTRY_SCOPING.md) | Global vs. country-scoped fields, multi-country setup, common pitfalls |
 | [LWC_README.md](LWC_README.md) | lscMobileInline_DCR_Overview component documentation |

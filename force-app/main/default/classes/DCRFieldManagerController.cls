@@ -8,10 +8,19 @@ public with sharing class DCRFieldManagerController {
         @AuraEnabled public Boolean hasRecordType;
         @AuraEnabled public String recTypeId;
         @AuraEnabled public String recTypeValidation;
+        @AuraEnabled public List<RecordTypeMappingInfo> recordTypeMappings;
         @AuraEnabled public Boolean hasPersonaDef;
         @AuraEnabled public String personaDefId;
         @AuraEnabled public String personaChangeUpdateType;
         @AuraEnabled public List<PersonaInfo> personas;
+    }
+
+    public class RecordTypeMappingInfo {
+        @AuraEnabled public String id;
+        @AuraEnabled public String recordTypeId;
+        @AuraEnabled public String recordTypeName;
+        @AuraEnabled public String validationType;
+        @AuraEnabled public String countryId;
     }
 
     public class FieldInfo {
@@ -105,9 +114,19 @@ public with sharing class DCRFieldManagerController {
             FROM LifeSciDataChgDefRecType
         ];
         Map<Id, LifeSciDataChgDefRecType> recTypeByDef = new Map<Id, LifeSciDataChgDefRecType>();
+        Map<Id, List<LifeSciDataChgDefRecType>> allRecTypesByDef = new Map<Id, List<LifeSciDataChgDefRecType>>();
+        Set<Id> allRecordTypeIds = new Set<Id>();
         for (LifeSciDataChgDefRecType rt : recTypes) {
             recTypeByDef.put(rt.LifeSciDataChgDefId, rt);
+            if (!allRecTypesByDef.containsKey(rt.LifeSciDataChgDefId)) {
+                allRecTypesByDef.put(rt.LifeSciDataChgDefId, new List<LifeSciDataChgDefRecType>());
+            }
+            allRecTypesByDef.get(rt.LifeSciDataChgDefId).add(rt);
+            if (rt.RecordTypeId != null) allRecordTypeIds.add(rt.RecordTypeId);
         }
+        Map<Id, RecordType> recordTypeNameMap = new Map<Id, RecordType>(
+            [SELECT Id, Name FROM RecordType WHERE Id IN :allRecordTypeIds]
+        );
 
         List<LifeSciDataChgPersonaDef> personaDefs = [
             SELECT Id, LifeSciDataChgDefId, ProfileId, IsActive, ChangeUpdateType
@@ -152,6 +171,22 @@ public with sharing class DCRFieldManagerController {
             if (rt != null) {
                 od.recTypeId = rt.Id;
                 od.recTypeValidation = rt.ValidationType;
+            }
+
+            od.recordTypeMappings = new List<RecordTypeMappingInfo>();
+            List<LifeSciDataChgDefRecType> defRecTypes = allRecTypesByDef.get(def.Id);
+            if (defRecTypes != null) {
+                for (LifeSciDataChgDefRecType drt : defRecTypes) {
+                    RecordTypeMappingInfo rtm = new RecordTypeMappingInfo();
+                    rtm.id = drt.Id;
+                    rtm.recordTypeId = drt.RecordTypeId;
+                    rtm.validationType = drt.ValidationType;
+                    rtm.countryId = drt.CountryId;
+                    if (drt.RecordTypeId != null && recordTypeNameMap.containsKey(drt.RecordTypeId)) {
+                        rtm.recordTypeName = recordTypeNameMap.get(drt.RecordTypeId).Name;
+                    }
+                    od.recordTypeMappings.add(rtm);
+                }
             }
 
             List<LifeSciDataChgPersonaDef> pds = personasByDef.get(def.Id);
@@ -276,6 +311,13 @@ public with sharing class DCRFieldManagerController {
     }
 
     @AuraEnabled
+    public static void updateRecordTypeMapping(String recTypeMappingId, String validationType) {
+        LifeSciDataChgDefRecType rt = [SELECT Id FROM LifeSciDataChgDefRecType WHERE Id = :recTypeMappingId];
+        rt.ValidationType = validationType;
+        update rt;
+    }
+
+    @AuraEnabled
     public static void removeRecordTypeMapping(String recTypeId) {
         delete [SELECT Id FROM LifeSciDataChgDefRecType WHERE Id = :recTypeId];
     }
@@ -325,6 +367,152 @@ public with sharing class DCRFieldManagerController {
             }
         }
         return result;
+    }
+
+    public class ValidationResult {
+        @AuraEnabled public String severity; // error, warning, success
+        @AuraEnabled public String objectName;
+        @AuraEnabled public String message;
+        @AuraEnabled public String detail;
+    }
+
+    @AuraEnabled
+    public static List<ValidationResult> validateConfig() {
+        List<ValidationResult> results = new List<ValidationResult>();
+
+        Map<Id, LifeSciDataChangeDef> defs = new Map<Id, LifeSciDataChangeDef>([
+            SELECT Id, ObjectName, IsActive FROM LifeSciDataChangeDef WHERE IsActive = true
+        ]);
+
+        // Collect all rec type mappings grouped by def, keyed by validation type
+        Map<Id, Set<String>> recTypeValidationsByDef = new Map<Id, Set<String>>();
+        Map<Id, List<LifeSciDataChgDefRecType>> recTypesByDef = new Map<Id, List<LifeSciDataChgDefRecType>>();
+        Set<Id> recordTypeIds = new Set<Id>();
+        for (LifeSciDataChgDefRecType rt : [
+            SELECT Id, LifeSciDataChgDefId, RecordTypeId, ValidationType
+            FROM LifeSciDataChgDefRecType
+        ]) {
+            if (!recTypeValidationsByDef.containsKey(rt.LifeSciDataChgDefId)) {
+                recTypeValidationsByDef.put(rt.LifeSciDataChgDefId, new Set<String>());
+            }
+            recTypeValidationsByDef.get(rt.LifeSciDataChgDefId).add(rt.ValidationType);
+            if (!recTypesByDef.containsKey(rt.LifeSciDataChgDefId)) {
+                recTypesByDef.put(rt.LifeSciDataChgDefId, new List<LifeSciDataChgDefRecType>());
+            }
+            recTypesByDef.get(rt.LifeSciDataChgDefId).add(rt);
+            if (rt.RecordTypeId != null) recordTypeIds.add(rt.RecordTypeId);
+        }
+        Map<Id, RecordType> rtNames = new Map<Id, RecordType>(
+            [SELECT Id, Name FROM RecordType WHERE Id IN :recordTypeIds]
+        );
+
+        // Collect managed fields grouped by def
+        Map<Id, List<LifeSciDataChgDefMngFld>> fieldsByDef = new Map<Id, List<LifeSciDataChgDefMngFld>>();
+        for (LifeSciDataChgDefMngFld mf : [
+            SELECT Id, LifeSciDataChgDefId, FieldApiName, ValidationType
+            FROM LifeSciDataChgDefMngFld
+        ]) {
+            if (!fieldsByDef.containsKey(mf.LifeSciDataChgDefId)) {
+                fieldsByDef.put(mf.LifeSciDataChgDefId, new List<LifeSciDataChgDefMngFld>());
+            }
+            fieldsByDef.get(mf.LifeSciDataChgDefId).add(mf);
+        }
+
+        // Check 1: Managed field ValidationType must match at least one RecType mapping ValidationType
+        for (LifeSciDataChangeDef def : defs.values()) {
+            Set<String> rtValidations = recTypeValidationsByDef.get(def.Id);
+            List<LifeSciDataChgDefMngFld> fields = fieldsByDef.get(def.Id);
+
+            if (rtValidations == null || rtValidations.isEmpty()) {
+                continue; // No rec type mappings — handled by other checks
+            }
+            if (fields == null || fields.isEmpty()) {
+                continue; // No managed fields
+            }
+
+            for (LifeSciDataChgDefMngFld mf : fields) {
+                if (!rtValidations.contains(mf.ValidationType)) {
+                    // Build detail about what rec type mappings exist
+                    List<String> rtDetails = new List<String>();
+                    for (LifeSciDataChgDefRecType rt : recTypesByDef.get(def.Id)) {
+                        String rtName = rtNames.containsKey(rt.RecordTypeId) ? rtNames.get(rt.RecordTypeId).Name : String.valueOf(rt.RecordTypeId);
+                        rtDetails.add(rtName + ' → ' + rt.ValidationType);
+                    }
+
+                    ValidationResult vr = new ValidationResult();
+                    vr.severity = 'error';
+                    vr.objectName = def.ObjectName;
+                    vr.message = 'Validation type mismatch: managed field "' + mf.FieldApiName + '" is ' + mf.ValidationType + ' but no record type mapping is ' + mf.ValidationType;
+                    vr.detail = 'Record type mappings: ' + String.join(rtDetails, '; ') + '. DCR will silently skip this field.';
+                    results.add(vr);
+                }
+            }
+        }
+
+        // Check 2: Child object RecType mapping validation type must match Account's mapping for the same Account record type
+        Id accountDefId = null;
+        for (LifeSciDataChangeDef def : defs.values()) {
+            if (def.ObjectName == 'Account') {
+                accountDefId = def.Id;
+                break;
+            }
+        }
+
+        if (accountDefId != null) {
+            // Build map of Account's record type ID → set of validation types
+            Map<Id, Set<String>> accountRtValidations = new Map<Id, Set<String>>();
+            List<LifeSciDataChgDefRecType> accountMappings = recTypesByDef.get(accountDefId);
+            if (accountMappings != null) {
+                for (LifeSciDataChgDefRecType art : accountMappings) {
+                    if (!accountRtValidations.containsKey(art.RecordTypeId)) {
+                        accountRtValidations.put(art.RecordTypeId, new Set<String>());
+                    }
+                    accountRtValidations.get(art.RecordTypeId).add(art.ValidationType);
+                }
+            }
+
+            for (LifeSciDataChangeDef def : defs.values()) {
+                if (def.ObjectName == 'Account') continue;
+                List<LifeSciDataChgDefRecType> childMappings = recTypesByDef.get(def.Id);
+                if (childMappings == null) continue;
+
+                for (LifeSciDataChgDefRecType childRt : childMappings) {
+                    String rtName = rtNames.containsKey(childRt.RecordTypeId) ? rtNames.get(childRt.RecordTypeId).Name : String.valueOf(childRt.RecordTypeId);
+                    Set<String> accountVals = accountRtValidations.get(childRt.RecordTypeId);
+
+                    if (accountVals == null) {
+                        ValidationResult vr = new ValidationResult();
+                        vr.severity = 'error';
+                        vr.objectName = def.ObjectName;
+                        vr.message = 'Record type "' + rtName + '" has no matching Account mapping';
+                        vr.detail = def.ObjectName + ' maps ' + rtName + ' → ' + childRt.ValidationType + ', but Account has no mapping for this record type. DCR will silently skip.';
+                        results.add(vr);
+                    } else if (!accountVals.contains(childRt.ValidationType)) {
+                        List<String> accountDetails = new List<String>();
+                        for (String v : accountVals) accountDetails.add(rtName + ' → ' + v);
+
+                        ValidationResult vr = new ValidationResult();
+                        vr.severity = 'error';
+                        vr.objectName = def.ObjectName;
+                        vr.message = 'Parent-child validation type mismatch for "' + rtName + '": ' + def.ObjectName + ' is ' + childRt.ValidationType + ' but Account is ' + String.join(new List<String>(accountVals), '/');
+                        vr.detail = 'Account mappings: ' + String.join(accountDetails, '; ') + '. Child object validation type must match Account for DCR to trigger.';
+                        results.add(vr);
+                    }
+                }
+            }
+        }
+
+        // If no issues found, add a success result
+        if (results.isEmpty()) {
+            ValidationResult vr = new ValidationResult();
+            vr.severity = 'success';
+            vr.objectName = '';
+            vr.message = 'All validation checks passed';
+            vr.detail = 'Managed field validation types align with record type mappings, and child object mappings match Account.';
+            results.add(vr);
+        }
+
+        return results;
     }
 
     private class FieldInfoComparator implements System.Comparator<FieldInfo> {

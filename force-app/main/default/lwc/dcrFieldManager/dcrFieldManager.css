@@ -1,3 +1,250 @@
+/* ── Step Navigation (Chevron) ── */
+
+.step-nav {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0;
+}
+
+.step-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    cursor: pointer;
+    border: 2px solid #e5e5e5;
+    background: #fff;
+    transition: all 0.15s;
+}
+
+.step-item:hover {
+    border-color: #0176d3;
+}
+
+.step-item-active {
+    border-color: #0176d3;
+    background: #f0f7ff;
+}
+
+.step-item-complete {
+    border-color: #2e844a;
+    background: #f4faf5;
+}
+
+.step-number {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.5rem;
+    height: 1.5rem;
+    border-radius: 50%;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #fff;
+    background: #706e6b;
+}
+
+.step-item-active .step-number {
+    background: #0176d3;
+}
+
+.step-item-complete .step-number {
+    background: #2e844a;
+}
+
+.step-label {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: #181818;
+}
+
+.step-chevron {
+    display: flex;
+    align-items: center;
+    color: #706e6b;
+}
+
+/* ── Objects & Record Types View ── */
+
+.section-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.625rem 0.75rem;
+    border-radius: 6px 6px 0 0;
+    margin-bottom: 0;
+}
+
+.section-configured {
+    background: #f4faf5;
+    border: 1px solid #2e844a;
+    border-bottom: none;
+}
+
+.section-unconfigured {
+    background: #fef3e8;
+    border: 1px solid #a96404;
+    border-bottom: none;
+}
+
+.section-header h2 {
+    font-size: 0.875rem;
+    font-weight: 700;
+    color: #181818;
+    margin: 0;
+}
+
+.section-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.5rem;
+    height: 1.5rem;
+    border-radius: 50%;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #fff;
+    background: #706e6b;
+}
+
+.section-configured .section-count {
+    background: #2e844a;
+}
+
+.section-unconfigured .section-count {
+    background: #a96404;
+}
+
+.section-icon-success {
+    --sds-c-icon-color-foreground-default: #2e844a;
+}
+
+.section-icon-warning {
+    --sds-c-icon-color-foreground-default: #a96404;
+}
+
+.obj-rt-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 0.75rem;
+    padding: 0.75rem;
+    border: 1px solid #e5e5e5;
+    border-top: none;
+    border-radius: 0 0 6px 6px;
+    background: #fafaf9;
+}
+
+.obj-rt-card {
+    background: #fff;
+    border: 1px solid #e5e5e5;
+    border-radius: 8px;
+    overflow: visible;
+}
+
+.obj-rt-card-configured {
+    border-left: 5px solid #2e844a;
+}
+
+.obj-rt-card-unconfigured {
+    border-left: 5px solid #dddbda;
+}
+
+.obj-rt-card-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.625rem 0.75rem;
+    background: #fafaf9;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.obj-rt-name {
+    font-size: 0.8125rem;
+    font-weight: 700;
+    color: #181818;
+    flex: 1;
+}
+
+.obj-rt-mappings {
+    padding: 0.5rem 0.75rem;
+}
+
+.rt-mapping-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.25rem 0;
+    border-bottom: 1px solid #f5f5f5;
+}
+
+.rt-mapping-row:last-child {
+    border-bottom: none;
+}
+
+.rt-mapping-name {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: #181818;
+    flex: 1;
+}
+
+.rt-mapping-combo {
+    width: 120px;
+    flex-shrink: 0;
+}
+
+.rt-mapping-country {
+    font-size: 0.6875rem;
+    color: #706e6b;
+}
+
+.badge-internal {
+    --slds-c-badge-color-background: #d4edfc;
+    --slds-c-badge-text-color: #0176d3;
+}
+
+.badge-external {
+    --slds-c-badge-color-background: #fde8d0;
+    --slds-c-badge-text-color: #a96404;
+}
+
+.obj-rt-card-footer {
+    display: flex;
+    gap: 1rem;
+    padding: 0.375rem 0.75rem;
+    background: #fafaf9;
+    border-top: 1px solid #f0f0f0;
+}
+
+.obj-rt-field-count,
+.obj-rt-persona-count {
+    font-size: 0.6875rem;
+    color: #706e6b;
+    font-weight: 600;
+}
+
+.obj-rt-empty-msg {
+    padding: 0.75rem;
+    font-size: 0.8125rem;
+    color: #706e6b;
+    font-style: italic;
+}
+
+.empty-section {
+    padding: 1rem 0.75rem;
+    font-size: 0.8125rem;
+    color: #706e6b;
+    font-style: italic;
+    border: 1px solid #e5e5e5;
+    border-top: none;
+    border-radius: 0 0 6px 6px;
+    background: #fafaf9;
+}
+
+/* ── Existing styles (Managed Fields view) ── */
+
 .country-picker {
     max-width: 300px;
 }
@@ -245,6 +492,104 @@
 .scope-country {
     background: #d4edfc;
     color: #0176d3;
+}
+
+/* ── Validate Config View ── */
+
+.validate-panel {
+    background: #fff;
+    border: 1px solid #e5e5e5;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.validate-header {
+    padding: 1rem;
+    background: #fafaf9;
+    border-bottom: 1px solid #e5e5e5;
+}
+
+.validate-header h2 {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #181818;
+    margin: 0;
+}
+
+.validate-desc {
+    font-size: 0.8125rem;
+    color: #706e6b;
+    margin: 0.25rem 0 0;
+}
+
+.validate-results {
+    padding: 0.5rem;
+}
+
+.vr-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    border-radius: 6px;
+    margin-bottom: 0.5rem;
+}
+
+.vr-row-error {
+    background: #fef0ef;
+    border: 1px solid #ea001e;
+}
+
+.vr-row-warning {
+    background: #fef3e8;
+    border: 1px solid #a96404;
+}
+
+.vr-row-success {
+    background: #f4faf5;
+    border: 1px solid #2e844a;
+}
+
+.vr-icon {
+    flex-shrink: 0;
+    padding-top: 0.125rem;
+}
+
+.vr-icon-error {
+    --sds-c-icon-color-foreground-default: #ea001e;
+}
+
+.vr-icon-warning {
+    --sds-c-icon-color-foreground-default: #a96404;
+}
+
+.vr-icon-success {
+    --sds-c-icon-color-foreground-default: #2e844a;
+}
+
+.vr-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.125rem;
+}
+
+.vr-object {
+    font-size: 0.6875rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #706e6b;
+}
+
+.vr-message {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: #181818;
+}
+
+.vr-detail {
+    font-size: 0.75rem;
+    color: #706e6b;
 }
 
 .saving-overlay {

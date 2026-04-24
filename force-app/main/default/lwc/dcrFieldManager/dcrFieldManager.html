@@ -1,6 +1,28 @@
 <template>
-    <lightning-card title="DCR Managed Fields" icon-name="standard:settings">
+    <lightning-card title="DCR Field Manager" icon-name="standard:settings">
         <div class="slds-p-horizontal_medium slds-p-bottom_medium">
+
+            <!-- Chevron Step Navigation -->
+            <div class="step-nav slds-m-bottom_medium">
+                <div class={stepObjectsClass} data-step="objectsAndRecTypes" onclick={handleStepClick}>
+                    <span class="step-number">1</span>
+                    <span class="step-label">DCR Objects &amp; Record Types</span>
+                </div>
+                <div class="step-chevron">
+                    <lightning-icon icon-name="utility:chevronright" size="x-small"></lightning-icon>
+                </div>
+                <div class={stepFieldsClass} data-step="managedFields" onclick={handleStepClick}>
+                    <span class="step-number">2</span>
+                    <span class="step-label">DCR Managed Fields</span>
+                </div>
+                <div class="step-chevron">
+                    <lightning-icon icon-name="utility:chevronright" size="x-small"></lightning-icon>
+                </div>
+                <div class={stepValidateClass} data-step="validateConfig" onclick={handleStepClick}>
+                    <span class="step-number">3</span>
+                    <span class="step-label">Validate Config</span>
+                </div>
+            </div>
 
             <div class="slds-m-bottom_medium">
                 <lightning-combobox
@@ -24,187 +46,316 @@
                 </div>
             </template>
 
-            <template lwc:if={hasObjects}>
-                <div class="tile-grid">
-                    <template for:each={processedObjects} for:item="obj">
-                        <div key={obj.defId} class={obj.tileClass} data-object={obj.objectName} onclick={handleSelectObject}>
-                            <div class="tile-icon">
-                                <lightning-icon icon-name={obj.iconName} size="medium"></lightning-icon>
-                            </div>
-                            <div class="tile-body">
-                                <span class="tile-name">{obj.objectName}</span>
-                                <div class="tile-status-row">
-                                    <template lwc:if={obj.isConfigured}>
-                                        <lightning-icon icon-name="utility:lock" size="xx-small" class="lock-icon"></lightning-icon>
-                                    </template>
-                                    <span class={obj.statusClass}>{obj.summary}</span>
+            <!-- STEP 1: DCR Objects & Record Types -->
+            <template lwc:if={isObjectsStep}>
+                <template lwc:if={hasObjects}>
+
+                    <!-- Section: Configured Objects (have RecType mappings) -->
+                    <div class="section-header section-configured">
+                        <lightning-icon icon-name="utility:success" size="x-small" class="section-icon-success"></lightning-icon>
+                        <h2>Objects with Record Type Mappings</h2>
+                        <span class="section-count">{configuredCount}</span>
+                    </div>
+                    <template lwc:if={hasConfiguredObjects}>
+                        <div class="obj-rt-grid">
+                            <template for:each={configuredObjects} for:item="obj">
+                                <div key={obj.defId} class="obj-rt-card obj-rt-card-configured">
+                                    <div class="obj-rt-card-header">
+                                        <lightning-icon icon-name={obj.iconName} size="small"></lightning-icon>
+                                        <span class="obj-rt-name">{obj.objectName}</span>
+                                        <lightning-badge label="Active" class="badge-active"></lightning-badge>
+                                    </div>
+                                    <div class="obj-rt-mappings">
+                                        <template for:each={obj.recordTypeMappings} for:item="rtm">
+                                            <div key={rtm.id} class="rt-mapping-row">
+                                                <span class="rt-mapping-name">{rtm.recordTypeName}</span>
+                                                <lightning-combobox
+                                                    value={rtm.validationType}
+                                                    options={rtm.validationOptions}
+                                                    data-mappingid={rtm.id}
+                                                    onchange={handleRecTypeMappingValidationChange}
+                                                    variant="label-hidden"
+                                                    label="Validation Type"
+                                                    class="rt-mapping-combo"
+                                                ></lightning-combobox>
+                                                <template lwc:if={rtm.countryLabel}>
+                                                    <span class="rt-mapping-country">{rtm.countryLabel}</span>
+                                                </template>
+                                            </div>
+                                        </template>
+                                    </div>
+                                    <div class="obj-rt-card-footer">
+                                        <span class="obj-rt-field-count">{obj.managedCount} managed field{obj.managedPlural}</span>
+                                        <template lwc:if={obj.hasPersonaDef}>
+                                            <span class="obj-rt-persona-count">{obj.personaCount} persona{obj.personaPlural}</span>
+                                        </template>
+                                    </div>
                                 </div>
-                                <div class="tile-config">
-                                    <template for:each={obj.configItems} for:item="ci">
-                                        <span key={ci.key} class={ci.chipClass}>{ci.label}</span>
-                                    </template>
-                                </div>
-                            </div>
+                            </template>
                         </div>
                     </template>
-                </div>
+                    <template lwc:else>
+                        <div class="empty-section">No objects have record type mappings configured.</div>
+                    </template>
 
-                <template lwc:if={selectedObject}>
-                    <div class="field-panel">
-                        <div class="field-panel-header">
-                            <div class="slds-grid slds-grid_vertical-align-center">
-                                <lightning-button-icon
-                                    icon-name="utility:back"
-                                    variant="bare"
-                                    alternative-text="Back"
-                                    onclick={handleDeselectObject}
-                                    class="slds-m-right_small"
-                                ></lightning-button-icon>
-                                <h2 class="panel-title">{selectedObject.objectName}</h2>
-                                <lightning-badge label={selectedObject.summary} class={selectedObject.badgeClass}></lightning-badge>
+                    <!-- Section: Unconfigured Objects (no RecType mappings) -->
+                    <div class="section-header section-unconfigured slds-m-top_medium">
+                        <lightning-icon icon-name="utility:warning" size="x-small" class="section-icon-warning"></lightning-icon>
+                        <h2>Objects without Record Type Mappings</h2>
+                        <span class="section-count">{unconfiguredCount}</span>
+                    </div>
+                    <template lwc:if={hasUnconfiguredObjects}>
+                        <div class="obj-rt-grid">
+                            <template for:each={unconfiguredObjects} for:item="obj">
+                                <div key={obj.defId} class="obj-rt-card obj-rt-card-unconfigured">
+                                    <div class="obj-rt-card-header">
+                                        <lightning-icon icon-name={obj.iconName} size="small"></lightning-icon>
+                                        <span class="obj-rt-name">{obj.objectName}</span>
+                                        <lightning-badge label="No Mapping" class="badge-inactive"></lightning-badge>
+                                    </div>
+                                    <div class="obj-rt-empty-msg">
+                                        No LifeSciDataChgDefRecType records. DCR will not trigger for this object.
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </template>
+                    <template lwc:else>
+                        <div class="empty-section">All objects have record type mappings configured.</div>
+                    </template>
+
+                </template>
+            </template>
+
+            <!-- STEP 2: DCR Managed Fields (existing UI) -->
+            <template lwc:if={isManagedFieldsStep}>
+                <template lwc:if={hasObjects}>
+                    <div class="tile-grid">
+                        <template for:each={processedObjects} for:item="obj">
+                            <div key={obj.defId} class={obj.tileClass} data-object={obj.objectName} onclick={handleSelectObject}>
+                                <div class="tile-icon">
+                                    <lightning-icon icon-name={obj.iconName} size="medium"></lightning-icon>
+                                </div>
+                                <div class="tile-body">
+                                    <span class="tile-name">{obj.objectName}</span>
+                                    <div class="tile-status-row">
+                                        <template lwc:if={obj.isConfigured}>
+                                            <lightning-icon icon-name="utility:lock" size="xx-small" class="lock-icon"></lightning-icon>
+                                        </template>
+                                        <span class={obj.statusClass}>{obj.summary}</span>
+                                    </div>
+                                    <div class="tile-config">
+                                        <template for:each={obj.configItems} for:item="ci">
+                                            <span key={ci.key} class={ci.chipClass}>{ci.label}</span>
+                                        </template>
+                                    </div>
+                                </div>
                             </div>
+                        </template>
+                    </div>
 
-                            <!-- Config status bar -->
-                            <div class="config-bar slds-m-top_small">
-                                <div class="config-item">
-                                    <span class="config-label">Record Type:</span>
-                                    <template lwc:if={selectedObject.hasRecordType}>
-                                        <lightning-badge label={selectedObject.recTypeValidation} class="slds-m-left_x-small badge-active"></lightning-badge>
-                                        <lightning-button-icon
-                                            icon-name="utility:delete"
-                                            variant="bare"
-                                            size="small"
-                                            alternative-text="Remove Record Type"
-                                            data-rectypeid={selectedObject.recTypeId}
-                                            onclick={handleRemoveRecordType}
-                                            class="slds-m-left_x-small"
-                                        ></lightning-button-icon>
-                                    </template>
-                                    <template lwc:else>
+                    <template lwc:if={selectedObject}>
+                        <div class="field-panel">
+                            <div class="field-panel-header">
+                                <div class="slds-grid slds-grid_vertical-align-center">
+                                    <lightning-button-icon
+                                        icon-name="utility:back"
+                                        variant="bare"
+                                        alternative-text="Back"
+                                        onclick={handleDeselectObject}
+                                        class="slds-m-right_small"
+                                    ></lightning-button-icon>
+                                    <h2 class="panel-title">{selectedObject.objectName}</h2>
+                                    <lightning-badge label={selectedObject.summary} class={selectedObject.badgeClass}></lightning-badge>
+                                </div>
+
+                                <!-- Config status bar -->
+                                <div class="config-bar slds-m-top_small">
+                                    <div class="config-item">
+                                        <span class="config-label">Record Type:</span>
+                                        <template lwc:if={selectedObject.hasRecordType}>
+                                            <lightning-badge label={selectedObject.recTypeValidation} class="slds-m-left_x-small badge-active"></lightning-badge>
+                                            <lightning-button-icon
+                                                icon-name="utility:delete"
+                                                variant="bare"
+                                                size="small"
+                                                alternative-text="Remove Record Type"
+                                                data-rectypeid={selectedObject.recTypeId}
+                                                onclick={handleRemoveRecordType}
+                                                class="slds-m-left_x-small"
+                                            ></lightning-button-icon>
+                                        </template>
+                                        <template lwc:else>
+                                            <lightning-button
+                                                label="Add Record Type"
+                                                variant="neutral"
+                                                size="small"
+                                                data-def={selectedObject.defId}
+                                                onclick={handleAddRecordType}
+                                                class="slds-m-left_x-small"
+                                            ></lightning-button>
+                                        </template>
+                                    </div>
+                                    <div class="config-item">
+                                        <span class="config-label">Profiles:</span>
+                                        <template lwc:if={selectedObject.hasPersonaDef}>
+                                            <template for:each={selectedObject.personas} for:item="p">
+                                                <span key={p.id} class="persona-chip">
+                                                    {p.profileName}
+                                                    <lightning-button-icon
+                                                        icon-name="utility:close"
+                                                        variant="bare"
+                                                        size="x-small"
+                                                        alternative-text="Remove"
+                                                        data-personaid={p.id}
+                                                        onclick={handleRemovePersona}
+                                                    ></lightning-button-icon>
+                                                </span>
+                                            </template>
+                                        </template>
                                         <lightning-button
-                                            label="Add Record Type"
+                                            label="Add Profile"
                                             variant="neutral"
                                             size="small"
                                             data-def={selectedObject.defId}
-                                            onclick={handleAddRecordType}
+                                            onclick={handleAddPersona}
                                             class="slds-m-left_x-small"
                                         ></lightning-button>
-                                    </template>
+                                    </div>
                                 </div>
-                                <div class="config-item">
-                                    <span class="config-label">Profiles:</span>
-                                    <template lwc:if={selectedObject.hasPersonaDef}>
-                                        <template for:each={selectedObject.personas} for:item="p">
-                                            <span key={p.id} class="persona-chip">
-                                                {p.profileName}
-                                                <lightning-button-icon
-                                                    icon-name="utility:close"
-                                                    variant="bare"
-                                                    size="x-small"
-                                                    alternative-text="Remove"
-                                                    data-personaid={p.id}
-                                                    onclick={handleRemovePersona}
-                                                ></lightning-button-icon>
-                                            </span>
-                                        </template>
-                                    </template>
-                                    <lightning-button
-                                        label="Add Profile"
-                                        variant="neutral"
-                                        size="small"
-                                        data-def={selectedObject.defId}
-                                        onclick={handleAddPersona}
-                                        class="slds-m-left_x-small"
-                                    ></lightning-button>
+
+                                <div class="slds-m-top_small">
+                                    <lightning-input
+                                        type="search"
+                                        placeholder="Filter fields..."
+                                        value={searchTerm}
+                                        onchange={handleSearchChange}
+                                        variant="label-hidden"
+                                        label="Search"
+                                    ></lightning-input>
                                 </div>
                             </div>
 
-                            <div class="slds-m-top_small">
-                                <lightning-input
-                                    type="search"
-                                    placeholder="Filter fields..."
-                                    value={searchTerm}
-                                    onchange={handleSearchChange}
-                                    variant="label-hidden"
-                                    label="Search"
-                                ></lightning-input>
-                            </div>
-                        </div>
-
-                        <div class="field-table-wrapper">
-                            <table class="field-table">
-                                <thead>
-                                    <tr>
-                                        <th style="width:50px">DCR</th>
-                                        <th>Field Label</th>
-                                        <th>API Name</th>
-                                        <th>Type</th>
-                                        <th style="width:80px">Scope</th>
-                                        <th style="width:140px">Validation</th>
-                                        <th style="width:80px">Apply Immediately</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <template for:each={selectedObject.displayFields} for:item="field">
-                                        <tr key={field.key} class={field.rowClass}>
-                                            <td>
-                                                <lightning-input
-                                                    type="checkbox"
-                                                    checked={field.isManaged}
-                                                    data-field={field.apiName}
-                                                    data-def={field.defId}
-                                                    data-label={field.label}
-                                                    data-managed={field.managedFieldId}
-                                                    onchange={handleFieldToggle}
-                                                    variant="label-hidden"
-                                                    label="Toggle DCR"
-                                                ></lightning-input>
-                                            </td>
-                                            <td class="field-label">
-                                                {field.label}
-                                                <template lwc:if={field.showCompoundHint}>
-                                                    <span class="compound-hint">{field.compoundHint}</span>
-                                                </template>
-                                            </td>
-                                            <td class="field-api">{field.apiName}</td>
-                                            <td class="field-type">{field.typeLabel}</td>
-                                            <td>
-                                                <template lwc:if={field.showScope}>
-                                                    <span class={field.scopeClass}>{field.scopeLabel}</span>
-                                                </template>
-                                            </td>
-                                            <td>
-                                                <template lwc:if={field.isManaged}>
-                                                    <lightning-combobox
-                                                        value={field.validationType}
-                                                        options={field.validationOptions}
-                                                        data-managed={field.managedFieldId}
-                                                        onchange={handleValidationChange}
-                                                        variant="label-hidden"
-                                                        label="Validation Type"
-                                                    ></lightning-combobox>
-                                                </template>
-                                            </td>
-                                            <td>
-                                                <template lwc:if={field.isManaged}>
+                            <div class="field-table-wrapper">
+                                <table class="field-table">
+                                    <thead>
+                                        <tr>
+                                            <th style="width:50px">DCR</th>
+                                            <th>Field Label</th>
+                                            <th>API Name</th>
+                                            <th>Type</th>
+                                            <th style="width:80px">Scope</th>
+                                            <th style="width:140px">Validation</th>
+                                            <th style="width:80px">Apply Immediately</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <template for:each={selectedObject.displayFields} for:item="field">
+                                            <tr key={field.key} class={field.rowClass}>
+                                                <td>
                                                     <lightning-input
                                                         type="checkbox"
-                                                        checked={field.applyImmediately}
+                                                        checked={field.isManaged}
+                                                        data-field={field.apiName}
+                                                        data-def={field.defId}
+                                                        data-label={field.label}
                                                         data-managed={field.managedFieldId}
-                                                        onchange={handleApplyImmediatelyChange}
+                                                        onchange={handleFieldToggle}
                                                         variant="label-hidden"
-                                                        label="Apply Immediately"
+                                                        label="Toggle DCR"
                                                     ></lightning-input>
-                                                </template>
-                                            </td>
-                                        </tr>
-                                    </template>
-                                </tbody>
-                            </table>
+                                                </td>
+                                                <td class="field-label">
+                                                    {field.label}
+                                                    <template lwc:if={field.showCompoundHint}>
+                                                        <span class="compound-hint">{field.compoundHint}</span>
+                                                    </template>
+                                                </td>
+                                                <td class="field-api">{field.apiName}</td>
+                                                <td class="field-type">{field.typeLabel}</td>
+                                                <td>
+                                                    <template lwc:if={field.showScope}>
+                                                        <span class={field.scopeClass}>{field.scopeLabel}</span>
+                                                    </template>
+                                                </td>
+                                                <td>
+                                                    <template lwc:if={field.isManaged}>
+                                                        <lightning-combobox
+                                                            value={field.validationType}
+                                                            options={field.validationOptions}
+                                                            data-managed={field.managedFieldId}
+                                                            onchange={handleValidationChange}
+                                                            variant="label-hidden"
+                                                            label="Validation Type"
+                                                        ></lightning-combobox>
+                                                    </template>
+                                                </td>
+                                                <td>
+                                                    <template lwc:if={field.isManaged}>
+                                                        <lightning-input
+                                                            type="checkbox"
+                                                            checked={field.applyImmediately}
+                                                            data-managed={field.managedFieldId}
+                                                            onchange={handleApplyImmediatelyChange}
+                                                            variant="label-hidden"
+                                                            label="Apply Immediately"
+                                                        ></lightning-input>
+                                                    </template>
+                                                </td>
+                                            </tr>
+                                        </template>
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
-                    </div>
+                    </template>
                 </template>
             </template>
+
+            <!-- STEP 3: Validate Config -->
+            <template lwc:if={isValidateStep}>
+                <div class="validate-panel">
+                    <div class="validate-header">
+                        <h2>Configuration Validation</h2>
+                        <p class="validate-desc">Run checks to detect mismatches and missing configuration that would cause DCRs to silently fail.</p>
+                        <lightning-button
+                            label="Run Validation"
+                            variant="brand"
+                            icon-name="utility:check"
+                            onclick={handleRunValidation}
+                            class="slds-m-top_small"
+                        ></lightning-button>
+                    </div>
+
+                    <template lwc:if={isValidating}>
+                        <div class="slds-p-around_large slds-align_absolute-center">
+                            <lightning-spinner alternative-text="Validating" size="medium"></lightning-spinner>
+                        </div>
+                    </template>
+
+                    <template lwc:if={hasValidationResults}>
+                        <div class="validate-results slds-m-top_medium">
+                            <template for:each={validationResults} for:item="vr">
+                                <div key={vr.key} class={vr.rowClass}>
+                                    <div class="vr-icon">
+                                        <lightning-icon icon-name={vr.iconName} size="x-small" class={vr.iconClass}></lightning-icon>
+                                    </div>
+                                    <div class="vr-body">
+                                        <template lwc:if={vr.objectName}>
+                                            <span class="vr-object">{vr.objectName}</span>
+                                        </template>
+                                        <span class="vr-message">{vr.message}</span>
+                                        <template lwc:if={vr.detail}>
+                                            <span class="vr-detail">{vr.detail}</span>
+                                        </template>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </template>
+                </div>
+            </template>
+
         </div>
     </lightning-card>
 
