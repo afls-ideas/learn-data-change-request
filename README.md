@@ -122,13 +122,13 @@ The `LifeSciDataChangeRequest` has **no direct Account lookup**. The account rel
 
 | Object | UI Location | Storage Type |
 |---|---|---|
-| `LifeSciDataChangeDef` | Admin Console > Account Management > Data Change Request > Object Status | Salesforce data record |
-| `LifeSciDataChgDefRecType` | Admin Console > Account Management > Data Change Request > click an object tile > Record Type section; or App Launcher > Life Science Data Change Definition Record Types | Salesforce data record |
-| `LifeSciDataChgDefMngFld` | Admin Console > Account Management > Data Change Request > click an object tile > field checkboxes; or App Launcher > Life Science Data Change Definition Managed Fields | Salesforce data record |
-| `LifeSciDataChgPersonaDef` | Admin Console > Account Management > Data Change Request > click an object tile > Profile section; or App Launcher > Life Science Data Change Persona Definitions | Salesforce data record |
+| `LifeSciDataChangeDef` | Admin Console > Data Change Request — Source Object dropdown and Object Status toggle. Only Account is shown; dropdown is greyed out. All 10 object definitions exist in the database but are not individually selectable from this page. | Salesforce data record |
+| `LifeSciDataChgDefRecType` | App Launcher > Life Science Data Change Definition Record Types | Salesforce data record |
+| `LifeSciDataChgDefMngFld` | App Launcher > Life Science Data Change Definition Managed Fields | Salesforce data record |
+| `LifeSciDataChgPersonaDef` | Admin Console > Data Change Request > Profile Settings section (Account only); or App Launcher > Life Science Data Change Persona Definitions | Salesforce data record |
 | `LifeSciDataChangeRequest` | DCR Approval tab (`lsc4ce:dataChangeListWithApproveReject`); or directly on Account record page via `lscMobileInline_DCR_Overview` LWC | Salesforce data record (transactional) |
 
-All five objects are standard Salesforce data records (not metadata/custom metadata types). They are queried via SOQL and can be created, updated, and deleted through standard DML. The `LifeSciDataChangeDef` records are pre-seeded per supported object and toggled active/inactive via the Admin Console — they are not created manually.
+All five objects are standard Salesforce data records (not metadata/custom metadata types). They are queried via SOQL and can be created, updated, and deleted through standard DML. The `LifeSciDataChangeDef` records are pre-seeded (10 records, one per supported object) and toggled active/inactive — they are not created manually. The Admin Console Data Change Request page only surfaces Account; other objects are managed via App Launcher object tabs or SOQL.
 
 ## How DCR Works (Trigger Flow)
 
@@ -206,7 +206,7 @@ For a detailed guide on Internal vs. External validation paths, external data pr
 
 Activate Data Change Definitions for each object you want DCR to govern:
 
-**Admin Console > Account Management > Data Change Request > Object Status**
+**Admin Console > Data Change Request** (left nav) — toggle Object Status on. Note: this page only shows Account; other objects are managed via the DCR Field Manager LWC or directly via SOQL.
 
 ### 2. Record Type Definitions (REQUIRED)
 
