@@ -6,29 +6,33 @@ Life Sciences organizations manage fundamentally different categories of people 
 
 ```mermaid
 flowchart TD
-    ROOT["Account Record Types"] --> HCP["Health Care Provider (HCP)"]
-    ROOT --> HCO["Health Care Organization (HCO)"]
-    ROOT --> CUSTOM["Custom Record Types"]
+    ROOT["Account Record Types"] --> HCP["HCP"]
+    ROOT --> HCO["HCO"]
+    ROOT --> CUSTOM["Custom"]
 
-    HCP --> HCP_EXT["External Validation"]
-    HCP_EXT --> HCP_WHY["Licensed professionals<br/>(physicians, surgeons, dentists)<br/>exist in 3rd-party registries"]
-    HCP_WHY --> IQVIA["IQVIA OneKey / MedPro"]
+    HCP --> HCP_EXT["External"]
+    HCP_EXT --> HCP_WHY["Licensed professionals"]
+    HCP_WHY --> IQVIA["IQVIA OneKey"]
 
-    HCO --> HCO_EXT["External Validation"]
-    HCO_EXT --> HCO_WHY["Registered facilities<br/>(hospitals, clinics, pharmacies)<br/>exist in 3rd-party registries"]
-    HCO_WHY --> MDM["IQVIA OneKey / Informatica MDM"]
+    HCO --> HCO_EXT["External"]
+    HCO_EXT --> HCO_WHY["Registered facilities"]
+    HCO_WHY --> IQVIA2["IQVIA OneKey"]
 
-    CUSTOM --> CUSTOM_INT["Internal Validation"]
-    CUSTOM_INT --> CUSTOM_WHY["Staff, Non-HCPs, Business Professionals<br/>(hospital directors, office managers,<br/>administrative contacts)<br/>do NOT exist in 3rd-party registries"]
-    CUSTOM_WHY --> STEWARD["Internal Data Steward"]
+    CUSTOM --> CUSTOM_INT["Internal"]
+    CUSTOM_INT --> CUSTOM_WHY["Not in registries"]
+    CUSTOM_WHY --> STEWARD["Data Steward"]
 
     style HCP_EXT fill:#fde8d0,color:#a96404
     style HCO_EXT fill:#fde8d0,color:#a96404
     style CUSTOM_INT fill:#d4edfc,color:#0176d3
     style IQVIA fill:#fde8d0,color:#a96404
-    style MDM fill:#fde8d0,color:#a96404
+    style IQVIA2 fill:#fde8d0,color:#a96404
     style STEWARD fill:#d4edfc,color:#0176d3
 ```
+
+**HCP** = Health Care Provider — physicians, surgeons, dentists (licensed professionals in 3rd-party registries)
+**HCO** = Health Care Organization — hospitals, clinics, pharmacies (registered facilities in 3rd-party registries)
+**Custom** = Staff, Non-HCP, Business Professional — hospital directors, office managers, administrative contacts (not in 3rd-party registries)
 
 ### External Validation (HCP / HCO)
 
@@ -36,7 +40,6 @@ Health Care Providers and Health Care Organizations are typically **externally v
 
 - **IQVIA OneKey** — the industry-standard global registry for HCPs and HCOs. Maintains credentials, affiliations, specialties, and facility details.
 - **MedPro** — provider credentialing and verification services.
-- **Informatica MDM** — master data management used for HCO validation.
 
 When a field rep updates an HCP or HCO account, the DCR is sent to the external provider to verify the change against their registry before it is applied in Salesforce. This keeps your data aligned with the industry source of truth.
 
@@ -58,7 +61,7 @@ This page shows each object with its record type mappings. For each mapping you 
 | Country | Country scope — "All" for global, or a specific country |
 | Validation Type | `Internal` or `External` |
 | Requires Approval for Creation | Whether new record creation needs approval (Internal only) |
-| External Validation System Name | The external system name (e.g., OneKey, InformaticaMDM) — only for External |
+| External Validation System Name | The external system name (e.g., OneKey) — only for External |
 
 ### Typical Account Configuration
 

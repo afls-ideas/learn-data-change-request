@@ -2,7 +2,7 @@
 
 ## Concept
 
-Life Sciences organizations manage different types of accounts that require different validation workflows. Healthcare Providers (HCPs) and Healthcare Organizations (HCOs) are often validated by external third-party data providers like **IQVIA OneKey** or **Informatica MDM**, while internal staff accounts (office staff, nurses, etc.) are validated by the organization's own data stewards.
+Life Sciences organizations manage different types of accounts that require different validation workflows. Healthcare Providers (HCPs) and Healthcare Organizations (HCOs) are often validated by external third-party data providers like **IQVIA OneKey**, while internal staff accounts (office staff, nurses, etc.) are validated by the organization's own data stewards.
 
 The DCR engine routes each change through the correct validation path based on the **Account record type**.
 
@@ -27,7 +27,7 @@ flowchart TD
 
     C -->|Yes — e.g. physician in OneKey| G[External validation<br/>Send DCR to IQVIA OneKey]
     C -->|No — e.g. office staff| H[Internal validation<br/>Data steward reviews]
-    D -->|Yes — e.g. hospital in MDM| I[External validation<br/>Send DCR to Informatica MDM]
+    D -->|Yes — e.g. hospital in OneKey| I[External validation<br/>Send DCR to IQVIA OneKey]
     D -->|No| J[Internal validation<br/>Data steward reviews]
 
     G --> K[External system approves/rejects]
@@ -55,7 +55,7 @@ graph LR
             HCP_INT["HCP → Internal<br/>Requires Approval: Yes"]
             HCP_EXT["HCP → External<br/>System: IQVIAOneKey"]
             HCO_INT["HCO → Internal<br/>Requires Approval: Yes"]
-            HCO_EXT["HCO → External<br/>System: InformaticaMDM"]
+            HCO_EXT["HCO → External<br/>System: OneKey"]
             PA["Person Account → Internal<br/>Requires Approval: Yes"]
         end
     end
@@ -74,7 +74,7 @@ In the Admin Console **Data Change Request Validation Types** screen, for the Ac
 | Health Care Provider | Internal | Yes | — |
 | Health Care Provider | External | No | IQVIAOneKey |
 | Health Care Organization | Internal | Yes | — |
-| Health Care Organization | External | No | InformaticaMDM |
+| Health Care Organization | External | No | OneKey |
 | Person Account | Internal | Yes | — |
 
 > **Note:** You can have both Internal and External mappings for the same record type. The DCR engine uses the managed field's `ValidationType` to determine which path a specific field change follows. See [Routing Logic](#how-the-engine-picks-the-path) below.
@@ -128,7 +128,7 @@ sequenceDiagram
         Internal->>Internal: Data steward reviews
     else Field ValidationType = External
         DCR Engine->>External: Create DCR (External)
-        External->>External: IQVIA/Informatica validates
+        External->>External: IQVIA OneKey validates
     end
 ```
 
@@ -187,12 +187,6 @@ IQVIA OneKey is the industry-standard registry for healthcare professionals. It 
 
 **ExternalValidationSysName:** `IQVIAOneKey` (or as configured in your integration layer)
 
-### Informatica MDM
-
-Informatica Master Data Management is used for HCO validation — hospitals, clinics, and other healthcare organizations. The integration follows a similar pattern to OneKey.
-
-**ExternalValidationSysName:** `InformaticaMDM` (or as configured in your integration layer)
-
 ### Integration Requirements
 
 For external validation to work:
@@ -234,7 +228,7 @@ There's no need for an External mapping since Person Accounts don't exist in ext
 |---|---|---|---|---|
 | Account | Health Care Provider | Internal | — | Yes |
 | Account | Health Care Provider | External | IQVIAOneKey | No |
-| Account | Health Care Organization | External | InformaticaMDM | No |
+| Account | Health Care Organization | External | OneKey | No |
 | Account | Person Account | Internal | — | Yes |
 | HealthcareProvider | Health Care Provider | Internal | — | Yes |
 | ContactPointAddress | Health Care Provider | Internal | — | Yes |

@@ -163,7 +163,7 @@ You can create **multiple record type mappings** per definition to route differe
 | Account Record Type | Validation Type | External System |
 |---|---|---|
 | Health Care Provider (HCP) | Internal | — |
-| Health Care Organization (HCO) | External | InformaticaMDM |
+| Health Care Organization (HCO) | External | OneKey |
 
 When a ContactPointAddress (or any related object) is edited, the DCR engine looks at the **parent Account's record type** to decide which validation path to use. This means the same object definition can produce Internal DCRs for HCP accounts and External DCRs for HCO accounts.
 
@@ -198,7 +198,7 @@ Objects that need their own RecType mapping:
 
 All of these map to **Account record types** (e.g., Health Care Provider, Health Care Organization), not record types on the target object.
 
-For a detailed guide on Internal vs. External validation paths, external data providers (IQVIA OneKey, Informatica MDM), and mixed validation setups, see [VALIDATION_TYPES.md](VALIDATION_TYPES.md).
+For a detailed guide on Internal vs. External validation paths, external data providers (IQVIA OneKey), and mixed validation setups, see [VALIDATION_TYPES.md](VALIDATION_TYPES.md).
 
 ## Setup Checklist
 
@@ -217,7 +217,7 @@ Create `LifeSciDataChgDefRecType` records to map each definition to an Account r
 2. Select the parent Data Change Definition (e.g., ContactPointAddress)
 3. Select the Account Record Type (e.g., Health Care Provider or Health Care Organization)
 4. Set Validation Type: `Internal` or `External`
-5. If External, set the External Validation System Name (e.g., "InformaticaMDM")
+5. If External, set the External Validation System Name (e.g., "OneKey")
 6. Optionally set Country (only DCRs for records in that country will use this mapping)
 7. Set "Is New Record Approval Required" as needed
 8. Repeat for each Account record type that needs a different validation path
@@ -355,7 +355,7 @@ If editing a managed field doesn't create a DCR record, check in this order:
 | Type | Managed By | Notes |
 |---|---|---|
 | Internal | Your organization | Supports "Requires Approval" toggle for record creation |
-| External | External validation system (e.g., OneKey, Informatica MDM) | Only Create and Update operations supported; Delete is rejected |
+| External | External validation system (e.g., OneKey) | Only Create and Update operations supported; Delete is rejected |
 
 ## Mandatory Fields for External Validation
 
@@ -450,6 +450,6 @@ Run via: `sf apex run --file scripts/apex/<script> --target-org 260-pm`
 |---|---|
 | [LifeSciDataChgDefRecType.md](LifeSciDataChgDefRecType.md) | Why HCP/HCO use External validation and custom record types use Internal — business rationale and Admin Console setup |
 | [COMPOUND_FIELDS.md](COMPOUND_FIELDS.md) | Account Name and ContactPointAddress Address compound field handling |
-| [VALIDATION_TYPES.md](VALIDATION_TYPES.md) | Internal vs. External validation, detailed routing logic, IQVIA OneKey/Informatica MDM integration |
+| [VALIDATION_TYPES.md](VALIDATION_TYPES.md) | Internal vs. External validation, detailed routing logic, IQVIA OneKey integration |
 | [COUNTRY_SCOPING.md](COUNTRY_SCOPING.md) | Global vs. country-scoped fields, multi-country setup, common pitfalls |
 | [LWC_README.md](LWC_README.md) | lscMobileInline_DCR_Overview component documentation |
