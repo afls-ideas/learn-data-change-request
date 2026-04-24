@@ -1,5 +1,7 @@
 # Data Change Request (DCR) Setup Guide
 
+> **Disclaimer:** This is not an official Salesforce repository. It is a personal learning and documentation project for understanding Life Sciences Cloud Data Change Request functionality. Content is based on hands-on testing and may not reflect all production scenarios.
+
 ## Overview
 
 Data Change Request (DCR) governs how data changes are submitted, validated, and implemented across LSC for Customer Engagement. It prevents unapproved changes from being applied and ensures data consistency across web and mobile apps.
