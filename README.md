@@ -123,7 +123,7 @@ The `LifeSciDataChangeRequest` has **no direct Account lookup**. The account rel
 | Object | UI Location | Storage Type |
 |---|---|---|
 | `LifeSciDataChangeDef` | Admin Console > Data Change Request — Source Object dropdown and Object Status toggle. Only Account is shown; dropdown is greyed out. All 10 object definitions exist in the database but are not individually selectable from this page. | Salesforce data record |
-| `LifeSciDataChgDefRecType` | App Launcher > Life Science Data Change Definition Record Types | Salesforce data record |
+| `LifeSciDataChgDefRecType` | Admin Console > Data Change Request Validation Types — configure record type mappings, validation type, and external system per object. See [LifeSciDataChgDefRecType.md](LifeSciDataChgDefRecType.md). Also available via App Launcher > Life Science Data Change Definition Record Types. | Salesforce data record |
 | `LifeSciDataChgDefMngFld` | App Launcher > Life Science Data Change Definition Managed Fields | Salesforce data record |
 | `LifeSciDataChgPersonaDef` | Admin Console > Data Change Request > Profile Settings section (Account only); or App Launcher > Life Science Data Change Persona Definitions | Salesforce data record |
 | `LifeSciDataChangeRequest` | DCR Approval tab (`lsc4ce:dataChangeListWithApproveReject`); or directly on Account record page via `lscMobileInline_DCR_Overview` LWC | Salesforce data record (transactional) |
@@ -448,7 +448,8 @@ Run via: `sf apex run --file scripts/apex/<script> --target-org 260-pm`
 
 | Document | Description |
 |---|---|
+| [LifeSciDataChgDefRecType.md](LifeSciDataChgDefRecType.md) | Why HCP/HCO use External validation and custom record types use Internal — business rationale and Admin Console setup |
 | [COMPOUND_FIELDS.md](COMPOUND_FIELDS.md) | Account Name and ContactPointAddress Address compound field handling |
-| [VALIDATION_TYPES.md](VALIDATION_TYPES.md) | Internal vs. External validation, record type routing, IQVIA OneKey/Informatica MDM |
+| [VALIDATION_TYPES.md](VALIDATION_TYPES.md) | Internal vs. External validation, detailed routing logic, IQVIA OneKey/Informatica MDM integration |
 | [COUNTRY_SCOPING.md](COUNTRY_SCOPING.md) | Global vs. country-scoped fields, multi-country setup, common pitfalls |
 | [LWC_README.md](LWC_README.md) | lscMobileInline_DCR_Overview component documentation |
