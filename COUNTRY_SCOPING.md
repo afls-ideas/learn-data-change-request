@@ -183,7 +183,7 @@ flowchart LR
 ```
 
 - **All Countries** — Shows every managed field across all definitions. No scope badge. Toggling a field on creates a **global** managed field (no CountryId).
-- **Specific country** — Shows global fields plus fields scoped to that country. Toggling a field on creates a **country-scoped** managed field with the selected country's Id.
+- **Specific country** — Shows global fields plus fields scoped to that country. Toggling a field on creates a **country-scoped** managed field with the selected country's Id. Global fields display an **"Override"** button — clicking it creates a country-specific managed field record that can have a different validation type than the global default.
 
 ## Country-Specific Validation Type Overrides
 

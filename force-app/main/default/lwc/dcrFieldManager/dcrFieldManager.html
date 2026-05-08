@@ -4,10 +4,35 @@
 
             <!-- Chevron Step Navigation -->
             <div class="step-nav slds-m-bottom_medium">
+                <div class={stepCountriesClass} data-step="countries" onclick={handleStepClick}>
+                    <span class="step-number">0</span>
+                    <span class="step-label">Countries</span>
+                </div>
+                <lightning-button-icon
+                    icon-name="utility:info"
+                    variant="bare"
+                    size="small"
+                    alternative-text="Info"
+                    data-step="countries"
+                    onclick={handleStepInfo}
+                    class="step-info-btn"
+                ></lightning-button-icon>
+                <div class="step-chevron">
+                    <lightning-icon icon-name="utility:chevronright" size="x-small"></lightning-icon>
+                </div>
                 <div class={stepObjectsClass} data-step="objectsAndRecTypes" onclick={handleStepClick}>
                     <span class="step-number">1</span>
                     <span class="step-label">DCR Objects &amp; Record Types</span>
                 </div>
+                <lightning-button-icon
+                    icon-name="utility:info"
+                    variant="bare"
+                    size="small"
+                    alternative-text="Info"
+                    data-step="objectsAndRecTypes"
+                    onclick={handleStepInfo}
+                    class="step-info-btn"
+                ></lightning-button-icon>
                 <div class="step-chevron">
                     <lightning-icon icon-name="utility:chevronright" size="x-small"></lightning-icon>
                 </div>
@@ -15,6 +40,15 @@
                     <span class="step-number">1A</span>
                     <span class="step-label">Country &times; Object Grid</span>
                 </div>
+                <lightning-button-icon
+                    icon-name="utility:info"
+                    variant="bare"
+                    size="small"
+                    alternative-text="Info"
+                    data-step="countryGrid"
+                    onclick={handleStepInfo}
+                    class="step-info-btn"
+                ></lightning-button-icon>
                 <div class="step-chevron">
                     <lightning-icon icon-name="utility:chevronright" size="x-small"></lightning-icon>
                 </div>
@@ -22,6 +56,15 @@
                     <span class="step-number">2</span>
                     <span class="step-label">DCR Managed Fields</span>
                 </div>
+                <lightning-button-icon
+                    icon-name="utility:info"
+                    variant="bare"
+                    size="small"
+                    alternative-text="Info"
+                    data-step="managedFields"
+                    onclick={handleStepInfo}
+                    class="step-info-btn"
+                ></lightning-button-icon>
                 <div class="step-chevron">
                     <lightning-icon icon-name="utility:chevronright" size="x-small"></lightning-icon>
                 </div>
@@ -29,6 +72,15 @@
                     <span class="step-number">3</span>
                     <span class="step-label">Validate Config</span>
                 </div>
+                <lightning-button-icon
+                    icon-name="utility:info"
+                    variant="bare"
+                    size="small"
+                    alternative-text="Info"
+                    data-step="validateConfig"
+                    onclick={handleStepInfo}
+                    class="step-info-btn"
+                ></lightning-button-icon>
             </div>
 
             <div class="slds-m-bottom_medium">
@@ -50,6 +102,73 @@
             <template lwc:if={isSaving}>
                 <div class="saving-overlay">
                     <lightning-spinner alternative-text="Saving" size="small"></lightning-spinner>
+                </div>
+            </template>
+
+            <!-- STEP 0: Countries -->
+            <template lwc:if={isCountriesStep}>
+                <div class="countries-panel">
+                    <div class="countries-header">
+                        <h2>Manage Countries</h2>
+                        <p class="countries-desc">Enable countries (LifeSciCountry records) that will be available for country-specific DCR configuration.</p>
+                    </div>
+
+                    <!-- Active Countries -->
+                    <template lwc:if={hasActiveCountries}>
+                        <div class="section-header section-configured slds-m-top_medium">
+                            <lightning-icon icon-name="utility:success" size="x-small" class="section-icon-success"></lightning-icon>
+                            <h2>Active Countries</h2>
+                            <span class="section-count">{activeCountryCount}</span>
+                        </div>
+                        <div class="country-enable-grid">
+                            <template for:each={activeCountries} for:item="country">
+                                <div key={country.value} class="country-chip country-chip-active">
+                                    <lightning-icon icon-name="standard:location" size="xx-small"></lightning-icon>
+                                    <span class="country-chip-label">{country.label}</span>
+                                    <lightning-button
+                                        label="Remove"
+                                        variant="destructive-text"
+                                        size="small"
+                                        data-id={country.value}
+                                        data-label={country.label}
+                                        onclick={handleRemoveCountry}
+                                    ></lightning-button>
+                                </div>
+                            </template>
+                        </div>
+                    </template>
+                    <template lwc:else>
+                        <div class="section-header section-unconfigured slds-m-top_medium">
+                            <lightning-icon icon-name="utility:warning" size="x-small" class="section-icon-warning"></lightning-icon>
+                            <h2>No Active Countries</h2>
+                        </div>
+                        <div class="empty-section">No LifeSciCountry records found. Add countries below to enable country-specific DCR configuration.</div>
+                    </template>
+
+                    <!-- Available Countries to Enable -->
+                    <template lwc:if={hasAvailableCountries}>
+                        <div class="section-header section-available slds-m-top_medium">
+                            <lightning-icon icon-name="utility:add" size="x-small" class="section-icon-add"></lightning-icon>
+                            <h2>Available Countries (click to enable)</h2>
+                            <span class="section-count section-count-available">{availableCountryCount}</span>
+                        </div>
+                        <div class="country-enable-grid">
+                            <template for:each={availableCountries} for:item="country">
+                                <div key={country.isoCode} class="country-chip country-chip-available">
+                                    <lightning-icon icon-name="standard:location" size="xx-small"></lightning-icon>
+                                    <span class="country-chip-label">{country.label} ({country.isoCode})</span>
+                                    <lightning-button
+                                        label="Enable"
+                                        variant="brand"
+                                        size="small"
+                                        data-iso={country.isoCode}
+                                        data-label={country.label}
+                                        onclick={handleAddCountry}
+                                    ></lightning-button>
+                                </div>
+                            </template>
+                        </div>
+                    </template>
                 </div>
             </template>
 
@@ -430,7 +549,19 @@
                                                 <td class="field-api">{field.apiName}</td>
                                                 <td class="field-type">{field.typeLabel}</td>
                                                 <td>
-                                                    <template lwc:if={field.showScope}>
+                                                    <template lwc:if={field.canCreateOverride}>
+                                                        <lightning-button
+                                                            label="Override"
+                                                            variant="brand-outline"
+                                                            size="small"
+                                                            icon-name="utility:add"
+                                                            data-field={field.apiName}
+                                                            data-def={field.defId}
+                                                            data-label={field.label}
+                                                            onclick={handleCreateOverride}
+                                                        ></lightning-button>
+                                                    </template>
+                                                    <template lwc:elseif={field.showScope}>
                                                         <span class={field.scopeClass}>{field.scopeLabel}</span>
                                                     </template>
                                                 </td>
@@ -564,6 +695,37 @@
                 <div class="slds-modal__footer">
                     <lightning-button label="Cancel" onclick={handleCloseRecordTypeModal}></lightning-button>
                     <lightning-button label="Save" variant="brand" onclick={handleSaveRecordType} class="slds-m-left_x-small"></lightning-button>
+                </div>
+            </div>
+        </section>
+        <div class="slds-backdrop slds-backdrop_open"></div>
+    </template>
+
+    <!-- Step Info Modal -->
+    <template lwc:if={showStepInfoModal}>
+        <section class="slds-modal slds-fade-in-open">
+            <div class="slds-modal__container slds-modal_small">
+                <div class="slds-modal__header">
+                    <lightning-button-icon
+                        icon-name="utility:close"
+                        variant="bare-inverse"
+                        alternative-text="Close"
+                        onclick={handleCloseStepInfo}
+                        class="slds-modal__close"
+                    ></lightning-button-icon>
+                    <h2 class="slds-modal__title">{stepInfoTitle}</h2>
+                </div>
+                <div class="slds-modal__content slds-p-around_medium">
+                    <p class="step-info-desc">{stepInfoDescription}</p>
+                    <div class="step-info-objects">
+                        <span class="step-info-label">Objects modified:</span>
+                        <template for:each={stepInfoObjects} for:item="obj">
+                            <code key={obj} class="step-info-object">{obj}</code>
+                        </template>
+                    </div>
+                </div>
+                <div class="slds-modal__footer">
+                    <lightning-button label="Close" onclick={handleCloseStepInfo}></lightning-button>
                 </div>
             </div>
         </section>

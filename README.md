@@ -282,9 +282,11 @@ Country scoping is optional but affects multiple levels:
 
 Countries are stored in the `LifeSciCountry` object. The DCR engine, Admin Console, and DCR Field Manager all read from this table.
 
-**UI:** App Launcher > Life Science Countries > New
+**Option A (recommended):** DCR Field Manager LWC > Step 0 (Countries) — shows active countries and a list of available countries to enable with one click. Also supports removing countries.
 
-**CLI:**
+**Option B:** App Launcher > Life Science Countries > New
+
+**Option C (CLI):**
 ```bash
 sf data create record -s LifeSciCountry \
   -v "MasterLabel='Canada' IsoCode='CA' DeveloperName='Canada'" \
@@ -416,15 +418,17 @@ See the full component documentation: [LWC_README.md](LWC_README.md)
 An admin LWC for managing DCR field definitions across all objects. Provides a visual tile-based UI showing which objects have DCR enabled and allows toggling individual fields on/off.
 
 **Features:**
+- **Step 0 — Countries:** Manage `LifeSciCountry` records directly from the UI. View active countries, enable new ones from a pre-populated list of 20 common countries, or remove countries no longer needed. Countries are required for country-scoped DCR governance.
 - **Step 1 — DCR Objects & Record Types:** Enable/disable DCR objects, view configured vs unconfigured objects, manage record type mappings and validation types inline
 - **Step 1A — Country × Object Grid:** Visual matrix showing which record type mappings exist per country per object, with click-to-create country overrides
-- **Step 2 — DCR Managed Fields:** Object tiles showing DCR status, click to see all fields with checkboxes to toggle DCR governance, inline Validation Type and Apply Immediately controls
+- **Step 2 — DCR Managed Fields:** Object tiles showing DCR status, click to see all fields with checkboxes to toggle DCR governance, inline Validation Type and Apply Immediately controls. When a country is selected, global-scoped fields show an **"Override"** button to create a country-specific managed field record with a different validation type.
 - **Step 3 — Validate Config:** Run automated checks to detect validation type mismatches and parent-child alignment issues that cause silent DCR failures
 - Country filter at the top scopes all views
 - Enable new DCR objects directly from the UI (creates `LifeSciDataChangeDef` records)
 - Disable objects that are no longer needed (deactivates the definition)
 - Add/remove Record Type mappings (Account record types) directly from the UI
 - Add/remove Profile assignments (persona definitions) from the UI
+- Create country-specific field overrides: when viewing a country, click "Override" on any global field to create a country-scoped copy with its own validation type
 
 **Access:** Custom tab "DCR Field Manager" with permission set `DCR_Field_Manager_Access`. Also available via the "AFLS Powertool" Lightning app.
 

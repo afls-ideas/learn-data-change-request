@@ -7,6 +7,42 @@
     padding: 0.5rem 0;
 }
 
+.step-info-btn {
+    --sds-c-icon-color-foreground-default: #706e6b;
+    margin-left: -0.25rem;
+}
+
+.step-info-desc {
+    font-size: 0.875rem;
+    color: #444;
+    margin-bottom: 0.75rem;
+}
+
+.step-info-objects {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.step-info-label {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #706e6b;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.step-info-object {
+    display: inline-block;
+    font-size: 0.75rem;
+    padding: 0.125rem 0.5rem;
+    background: #f3f3f3;
+    border: 1px solid #e5e5e5;
+    border-radius: 4px;
+    color: #181818;
+}
+
 .step-item {
     display: flex;
     align-items: center;
@@ -64,6 +100,7 @@
     display: flex;
     align-items: center;
     color: #706e6b;
+    padding-top: 0.5rem;
 }
 
 /* ── Objects & Record Types View ── */
@@ -833,4 +870,67 @@
     display: flex;
     align-items: center;
     justify-content: center;
+}
+
+/* ── Countries Step ── */
+
+.countries-panel {
+    background: #fff;
+    border: 1px solid #e5e5e5;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.countries-header {
+    padding: 1rem;
+    background: #fafaf9;
+    border-bottom: 1px solid #e5e5e5;
+}
+
+.countries-header h2 {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #181818;
+    margin: 0;
+}
+
+.countries-desc {
+    font-size: 0.8125rem;
+    color: #706e6b;
+    margin: 0.25rem 0 0;
+}
+
+.country-enable-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    padding: 0.75rem;
+    border: 1px solid #e5e5e5;
+    border-top: none;
+    border-radius: 0 0 6px 6px;
+    background: #fafaf9;
+}
+
+.country-chip {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.375rem 0.625rem;
+    background: #fff;
+    border: 1px solid #e5e5e5;
+    border-radius: 6px;
+}
+
+.country-chip-active {
+    border-left: 4px solid #2e844a;
+}
+
+.country-chip-available {
+    border-left: 4px solid #0176d3;
+}
+
+.country-chip-label {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: #181818;
 }

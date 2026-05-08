@@ -15,6 +15,8 @@ import validateConfig from '@salesforce/apex/DCRFieldManagerController.validateC
 import getEligibleObjects from '@salesforce/apex/DCRFieldManagerController.getEligibleObjects';
 import enableDcrObject from '@salesforce/apex/DCRFieldManagerController.enableDcrObject';
 import disableDcrObject from '@salesforce/apex/DCRFieldManagerController.disableDcrObject';
+import addCountry from '@salesforce/apex/DCRFieldManagerController.addCountry';
+import removeCountry from '@salesforce/apex/DCRFieldManagerController.removeCountry';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import { refreshApex } from '@salesforce/apex';
 
@@ -47,6 +49,29 @@ const COMPOUND_FIELD_MAP = {
     }
 };
 
+const WELL_KNOWN_COUNTRIES = [
+    { label: 'United States', isoCode: 'US' },
+    { label: 'United Kingdom', isoCode: 'GB' },
+    { label: 'Canada', isoCode: 'CA' },
+    { label: 'Germany', isoCode: 'DE' },
+    { label: 'France', isoCode: 'FR' },
+    { label: 'India', isoCode: 'IN' },
+    { label: 'Japan', isoCode: 'JP' },
+    { label: 'Australia', isoCode: 'AU' },
+    { label: 'Brazil', isoCode: 'BR' },
+    { label: 'Italy', isoCode: 'IT' },
+    { label: 'Spain', isoCode: 'ES' },
+    { label: 'Mexico', isoCode: 'MX' },
+    { label: 'China', isoCode: 'CN' },
+    { label: 'South Korea', isoCode: 'KR' },
+    { label: 'Netherlands', isoCode: 'NL' },
+    { label: 'Switzerland', isoCode: 'CH' },
+    { label: 'Sweden', isoCode: 'SE' },
+    { label: 'Belgium', isoCode: 'BE' },
+    { label: 'Ireland', isoCode: 'IE' },
+    { label: 'Singapore', isoCode: 'SG' }
+];
+
 const CHANGE_UPDATE_OPTIONS = [
     { label: 'Do Not Apply Immediately', value: 'DoNotApplyChangesImmediately' },
     { label: 'Apply By Field', value: 'ApplyChangesByField' },
@@ -64,13 +89,18 @@ export default class DcrFieldManager extends LightningElement {
     searchTerm = '';
     dcrRecordTypes = [];
     profiles = [];
-    activeStep = 'objectsAndRecTypes';
+    activeStep = 'countries';
     isValidating = false;
     _validationResults = [];
+    _wiredCountriesResult;
 
     gridRecordTypeFilter = '';
     eligibleObjects = [];
     _wiredEligibleResult;
+    showStepInfoModal = false;
+    stepInfoTitle = '';
+    stepInfoDescription = '';
+    stepInfoObjects = [];
 
     showRecordTypeModal = false;
     showPersonaModal = false;
@@ -103,6 +133,10 @@ export default class DcrFieldManager extends LightningElement {
     }
 
     // Step navigation
+    get isCountriesStep() {
+        return this.activeStep === 'countries';
+    }
+
     get isObjectsStep() {
         return this.activeStep === 'objectsAndRecTypes';
     }
@@ -119,10 +153,17 @@ export default class DcrFieldManager extends LightningElement {
         return this.activeStep === 'validateConfig';
     }
 
+    get stepCountriesClass() {
+        const step = this.activeStep;
+        if (step === 'countries') return 'step-item step-item-active';
+        return 'step-item step-item-complete';
+    }
+
     get stepObjectsClass() {
         const step = this.activeStep;
         if (step === 'objectsAndRecTypes') return 'step-item step-item-active';
         if (step === 'countryGrid' || step === 'managedFields' || step === 'validateConfig') return 'step-item step-item-complete';
+        if (step === 'countries') return 'step-item';
         return 'step-item';
     }
 
@@ -264,6 +305,49 @@ export default class DcrFieldManager extends LightningElement {
         }
     }
 
+    handleStepInfo(event) {
+        event.stopPropagation();
+        const step = event.currentTarget.dataset.step;
+        const info = {
+            countries: {
+                title: 'Step 0: Countries',
+                description: 'Manage which countries (LifeSciCountry records) are available in the org. Countries are used throughout DCR configuration for country-specific record type mappings and managed field scoping.',
+                objects: ['LifeSciCountry']
+            },
+            objectsAndRecTypes: {
+                title: 'Step 1: DCR Objects & Record Types',
+                description: 'Enable/disable DCR for objects, manage record type mappings (which Account record types route to Internal vs External validation), and configure persona definitions (profile-specific DCR behavior).',
+                objects: ['LifeSciDataChangeDef', 'LifeSciDataChgDefRecType', 'LifeSciDataChgPersonaDef']
+            },
+            countryGrid: {
+                title: 'Step 1A: Country × Object Grid',
+                description: 'View and manage country-specific record type mapping overrides. Each cell shows whether a country uses a global default or has its own validation routing.',
+                objects: ['LifeSciDataChgDefRecType']
+            },
+            managedFields: {
+                title: 'Step 2: DCR Managed Fields',
+                description: 'Toggle which fields are governed by DCR for each object. Only changes to managed fields will generate Data Change Requests.',
+                objects: ['LifeSciDataChgDefMngFld']
+            },
+            validateConfig: {
+                title: 'Step 3: Validate Config',
+                description: 'Run read-only checks to detect validation type mismatches and parent-child alignment issues that cause DCRs to silently fail.',
+                objects: ['Read-only — no objects modified']
+            }
+        };
+        const stepInfo = info[step];
+        if (stepInfo) {
+            this.stepInfoTitle = stepInfo.title;
+            this.stepInfoDescription = stepInfo.description;
+            this.stepInfoObjects = stepInfo.objects;
+            this.showStepInfoModal = true;
+        }
+    }
+
+    handleCloseStepInfo() {
+        this.showStepInfoModal = false;
+    }
+
     async handleRecTypeMappingValidationChange(event) {
         const mappingId = event.target.dataset.mappingid;
         const validationType = event.detail.value;
@@ -358,9 +442,66 @@ export default class DcrFieldManager extends LightningElement {
     }
 
     @wire(getCountries)
-    wiredCountries({ data }) {
-        if (data) {
-            this.countries = data.map(c => ({ label: c.label, value: c.id }));
+    wiredCountries(result) {
+        this._wiredCountriesResult = result;
+        if (result.data) {
+            this.countries = result.data.map(c => ({ label: c.label, value: c.id, isoCode: c.isoCode }));
+        }
+    }
+
+    // Countries step
+    get activeCountries() {
+        return this.countries.filter(c => c.value !== '');
+    }
+
+    get hasActiveCountries() {
+        return this.activeCountries.length > 0;
+    }
+
+    get activeCountryCount() {
+        return this.activeCountries.length;
+    }
+
+    get availableCountries() {
+        const activeIsoCodes = new Set(this.activeCountries.map(c => c.isoCode));
+        return WELL_KNOWN_COUNTRIES.filter(c => !activeIsoCodes.has(c.isoCode));
+    }
+
+    get hasAvailableCountries() {
+        return this.availableCountries.length > 0;
+    }
+
+    get availableCountryCount() {
+        return this.availableCountries.length;
+    }
+
+    async handleAddCountry(event) {
+        const isoCode = event.currentTarget.dataset.iso;
+        const label = event.currentTarget.dataset.label;
+        this.isSaving = true;
+        try {
+            await addCountry({ masterLabel: label, isoCode });
+            this.showToast('Success', `${label} (${isoCode}) added`, 'success');
+            await refreshApex(this._wiredCountriesResult);
+        } catch (error) {
+            this.showToast('Error', error.body?.message || 'Failed to add country', 'error');
+        } finally {
+            this.isSaving = false;
+        }
+    }
+
+    async handleRemoveCountry(event) {
+        const countryId = event.currentTarget.dataset.id;
+        const label = event.currentTarget.dataset.label;
+        this.isSaving = true;
+        try {
+            await removeCountry({ countryId });
+            this.showToast('Success', `${label} removed`, 'success');
+            await refreshApex(this._wiredCountriesResult);
+        } catch (error) {
+            this.showToast('Error', error.body?.message || 'Failed to remove country', 'error');
+        } finally {
+            this.isSaving = false;
         }
     }
 
@@ -542,6 +683,7 @@ export default class DcrFieldManager extends LightningElement {
                 const isGlobal = f.isManaged && !f.countryId;
                 const isCountrySpecific = f.isManaged && !!f.countryId;
                 const showScope = f.isManaged && !!this.selectedCountryId;
+                const canCreateOverride = f.isGlobalOnly && !!this.selectedCountryId;
                 return {
                     ...f,
                     key: od.defId + '_' + f.apiName,
@@ -557,6 +699,7 @@ export default class DcrFieldManager extends LightningElement {
                     showScope,
                     scopeLabel: isGlobal ? 'Global' : (isCountrySpecific ? 'Country' : ''),
                     scopeClass: isGlobal ? 'scope-badge scope-global' : 'scope-badge scope-country',
+                    canCreateOverride,
                     validationOptions: [
                         { label: 'Internal', value: 'Internal' },
                         { label: 'External', value: 'External' }
@@ -621,6 +764,30 @@ export default class DcrFieldManager extends LightningElement {
             await refreshApex(this._wiredDefsResult);
         } catch (error) {
             this.showToast('Error', error.body?.message || 'Operation failed', 'error');
+        } finally {
+            this.isSaving = false;
+        }
+    }
+
+    async handleCreateOverride(event) {
+        const fieldApiName = event.target.dataset.field;
+        const defId = event.target.dataset.def;
+        const fieldLabel = event.target.dataset.label;
+
+        this.isSaving = true;
+        try {
+            await addManagedField({
+                defId,
+                fieldApiName,
+                fieldLabel,
+                validationType: 'Internal',
+                applyImmediately: false,
+                countryId: this.selectedCountryId
+            });
+            this.showToast('Success', `Country override created for ${fieldLabel}`, 'success');
+            await refreshApex(this._wiredDefsResult);
+        } catch (error) {
+            this.showToast('Error', error.body?.message || 'Failed to create override', 'error');
         } finally {
             this.isSaving = false;
         }

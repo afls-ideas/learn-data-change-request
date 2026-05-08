@@ -34,6 +34,8 @@ public with sharing class DCRFieldManagerController {
         @AuraEnabled public Boolean applyImmediately;
         @AuraEnabled public String validationType;
         @AuraEnabled public String countryId;
+        @AuraEnabled public Boolean isGlobalOnly;
+        @AuraEnabled public Boolean hasCountryOverride;
     }
 
     public class CountryOption {
@@ -104,11 +106,23 @@ public with sharing class DCRFieldManagerController {
         List<LifeSciDataChgDefMngFld> managedFields = Database.query(query);
 
         Map<Id, Map<String, LifeSciDataChgDefMngFld>> managedByDef = new Map<Id, Map<String, LifeSciDataChgDefMngFld>>();
+        Map<Id, Map<String, LifeSciDataChgDefMngFld>> globalManagedByDef = new Map<Id, Map<String, LifeSciDataChgDefMngFld>>();
+        Map<Id, Map<String, LifeSciDataChgDefMngFld>> countryManagedByDef = new Map<Id, Map<String, LifeSciDataChgDefMngFld>>();
         for (LifeSciDataChgDefMngFld mf : managedFields) {
             if (!managedByDef.containsKey(mf.LifeSciDataChgDefId)) {
                 managedByDef.put(mf.LifeSciDataChgDefId, new Map<String, LifeSciDataChgDefMngFld>());
+                globalManagedByDef.put(mf.LifeSciDataChgDefId, new Map<String, LifeSciDataChgDefMngFld>());
+                countryManagedByDef.put(mf.LifeSciDataChgDefId, new Map<String, LifeSciDataChgDefMngFld>());
             }
-            managedByDef.get(mf.LifeSciDataChgDefId).put(mf.FieldApiName, mf);
+            if (mf.CountryId == null) {
+                globalManagedByDef.get(mf.LifeSciDataChgDefId).put(mf.FieldApiName, mf);
+            } else {
+                countryManagedByDef.get(mf.LifeSciDataChgDefId).put(mf.FieldApiName, mf);
+            }
+            // Prefer country-specific over global when both exist
+            if (mf.CountryId != null || !managedByDef.get(mf.LifeSciDataChgDefId).containsKey(mf.FieldApiName)) {
+                managedByDef.get(mf.LifeSciDataChgDefId).put(mf.FieldApiName, mf);
+            }
         }
 
         List<LifeSciDataChgDefRecType> recTypes = [
@@ -248,6 +262,13 @@ public with sharing class DCRFieldManagerController {
                     fi.validationType = 'Internal';
                 }
 
+                Map<String, LifeSciDataChgDefMngFld> globalMap = globalManagedByDef.get(def.Id);
+                Map<String, LifeSciDataChgDefMngFld> countryMap = countryManagedByDef.get(def.Id);
+                Boolean hasGlobal = globalMap != null && globalMap.containsKey(dfr.getName());
+                Boolean hasCountry = countryMap != null && countryMap.containsKey(dfr.getName());
+                fi.isGlobalOnly = hasGlobal && !hasCountry && String.isNotBlank(countryId);
+                fi.hasCountryOverride = hasCountry;
+
                 od.fields.add(fi);
                 addedFields.add(dfr.getName());
             }
@@ -265,6 +286,14 @@ public with sharing class DCRFieldManagerController {
                     fi.applyImmediately = mf.ShouldApplyChngImmediately;
                     fi.validationType = mf.ValidationType;
                     fi.countryId = mf.CountryId;
+
+                    Map<String, LifeSciDataChgDefMngFld> globalMap = globalManagedByDef.get(def.Id);
+                    Map<String, LifeSciDataChgDefMngFld> countryMap = countryManagedByDef.get(def.Id);
+                    Boolean hasGlobal = globalMap != null && globalMap.containsKey(managedFieldName);
+                    Boolean hasCountry = countryMap != null && countryMap.containsKey(managedFieldName);
+                    fi.isGlobalOnly = hasGlobal && !hasCountry && String.isNotBlank(countryId);
+                    fi.hasCountryOverride = hasCountry;
+
                     od.fields.add(fi);
                 }
             }
@@ -577,25 +606,49 @@ public with sharing class DCRFieldManagerController {
         List<LifeSciDataChangeDef> existing = [
             SELECT Id, IsActive FROM LifeSciDataChangeDef WHERE ObjectName = :objectName LIMIT 1
         ];
+        Id defId;
         if (!existing.isEmpty()) {
             LifeSciDataChangeDef def = existing[0];
             if (!def.IsActive) {
                 def.IsActive = true;
                 update def;
             }
-            return def.Id;
+            defId = def.Id;
+        } else {
+            LifeSciDataChangeDef def = new LifeSciDataChangeDef();
+            def.DeveloperName = objectName.replaceAll('[^a-zA-Z0-9]', '_') + '_DCR';
+            def.MasterLabel = objectName + ' DCR';
+            def.ObjectName = objectName;
+            def.IsActive = true;
+            try {
+                insert def;
+            } catch (DmlException e) {
+                throw new AuraHandledException(e.getDmlMessage(0));
+            }
+            defId = def.Id;
         }
-        LifeSciDataChangeDef def = new LifeSciDataChangeDef();
-        def.DeveloperName = objectName.replaceAll('[^a-zA-Z0-9]', '_') + '_DCR';
-        def.MasterLabel = objectName + ' DCR';
-        def.ObjectName = objectName;
-        def.IsActive = true;
-        try {
-            insert def;
-        } catch (DmlException e) {
-            throw new AuraHandledException(e.getDmlMessage(0));
+
+        // Auto-create a default RecType mapping if none exists
+        List<LifeSciDataChgDefRecType> existingRts = [
+            SELECT Id FROM LifeSciDataChgDefRecType WHERE LifeSciDataChgDefId = :defId LIMIT 1
+        ];
+        if (existingRts.isEmpty()) {
+            List<RecordType> healthRts = [
+                SELECT Id FROM RecordType
+                WHERE SobjectType = 'Account' AND Name LIKE '%Health%'
+                ORDER BY Name LIMIT 1
+            ];
+            if (!healthRts.isEmpty()) {
+                LifeSciDataChgDefRecType rt = new LifeSciDataChgDefRecType();
+                rt.LifeSciDataChgDefId = defId;
+                rt.RecordTypeId = healthRts[0].Id;
+                rt.ValidationType = 'External';
+                rt.IsNewRecApprovalRequired = true;
+                insert rt;
+            }
         }
-        return def.Id;
+
+        return defId;
     }
 
     @AuraEnabled
@@ -603,6 +656,26 @@ public with sharing class DCRFieldManagerController {
         LifeSciDataChangeDef def = [SELECT Id, IsActive FROM LifeSciDataChangeDef WHERE Id = :defId];
         def.IsActive = false;
         update def;
+    }
+
+    @AuraEnabled
+    public static String addCountry(String masterLabel, String isoCode) {
+        String developerName = masterLabel.replaceAll(' ', '_');
+        LifeSciCountry country = new LifeSciCountry();
+        country.MasterLabel = masterLabel;
+        country.IsoCode = isoCode;
+        country.DeveloperName = developerName;
+        try {
+            insert country;
+        } catch (DmlException e) {
+            throw new AuraHandledException(e.getDmlMessage(0));
+        }
+        return country.Id;
+    }
+
+    @AuraEnabled
+    public static void removeCountry(String countryId) {
+        delete [SELECT Id FROM LifeSciCountry WHERE Id = :countryId];
     }
 
     private class FieldInfoComparator implements System.Comparator<FieldInfo> {
