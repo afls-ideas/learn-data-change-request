@@ -185,6 +185,125 @@ flowchart LR
 - **All Countries** — Shows every managed field across all definitions. No scope badge. Toggling a field on creates a **global** managed field (no CountryId).
 - **Specific country** — Shows global fields plus fields scoped to that country. Toggling a field on creates a **country-scoped** managed field with the selected country's Id.
 
+## Country-Specific Validation Type Overrides
+
+Country scoping doesn't just apply to managed fields — it also applies to **record type mappings** (`LifeSciDataChgDefRecType`). This lets you set a global default validation path and then override it for specific countries.
+
+### The Problem
+
+Your org uses IQVIA OneKey as the external validation system for HCP and HCO globally. But:
+- **GB (United Kingdom)** needs **Internal** validation — your UK data stewards handle it
+- Or perhaps GB uses a **different external system** entirely
+
+You can't just change the global "All" row — that would break every other country.
+
+### The Solution: Add Country Overrides
+
+In the **Data Change Request Validation Types** screen, each record type row has an **"Add Country"** button. Clicking it creates a country-specific override row that takes precedence over the "All" default for users in that country.
+
+#### Starting Point: Global External Validation
+
+| Record Type | Country | Validation Type | Requires Approval | External System |
+|---|---|---|---|---|
+| Health Care Provider | All | External | No | OneKey |
+| Health Care Organization | All | External | No | OneKey |
+
+This sends all HCP and HCO changes to OneKey, regardless of user country.
+
+```mermaid
+graph TD
+    subgraph "Default: All Countries"
+        HCP_ALL["HCP → External → OneKey"]
+        HCO_ALL["HCO → External → OneKey"]
+    end
+
+    style HCP_ALL fill:#fde8d0,color:#a96404
+    style HCO_ALL fill:#fde8d0,color:#a96404
+```
+
+#### After Adding Country Overrides
+
+Click **"Add Country"** on the HCP row to add country-specific overrides:
+
+| Record Type | Country | Validation Type | Requires Approval | External System |
+|---|---|---|---|---|
+| Health Care Provider | All | External | No | OneKey |
+| Health Care Provider | United Kingdom | External | Yes | HSJ |
+| Health Care Provider | Canada | Internal | No | — |
+| Health Care Organization | All | External | No | OneKey |
+
+```mermaid
+graph TD
+    subgraph "HCP Validation Routing"
+        DEFAULT["HCP — All Countries<br/>External → OneKey"]
+        UK["HCP — United Kingdom<br/>External → HSJ"]
+        CA["HCP — Canada<br/>Internal"]
+    end
+    subgraph "HCO Validation Routing"
+        HCO["HCO — All Countries<br/>External → OneKey"]
+    end
+
+    style DEFAULT fill:#fde8d0,color:#a96404
+    style UK fill:#c9e8fc,color:#0b5cab
+    style CA fill:#d4edfc,color:#0176d3
+    style HCO fill:#fde8d0,color:#a96404
+```
+
+### How the Engine Resolves Country Overrides
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant DCR Engine
+    participant RecTypeMapping as LifeSciDataChgDefRecType
+
+    User->>DCR Engine: Edits HCP Account
+    DCR Engine->>RecTypeMapping: Find HCP mappings
+    RecTypeMapping-->>DCR Engine: All → External (OneKey)<br/>UK → External (HSJ)<br/>Canada → Internal
+
+    alt User's PreferredCountry = GB
+        Note over DCR Engine: Country-specific match: UK row
+        DCR Engine->>DCR Engine: Route to HSJ (External)
+    else User's PreferredCountry = CA
+        Note over DCR Engine: Country-specific match: Canada row
+        DCR Engine->>DCR Engine: Route to Internal queue
+    else User's PreferredCountry = FR (no override)
+        Note over DCR Engine: No country match — use "All" default
+        DCR Engine->>DCR Engine: Route to OneKey (External)
+    end
+```
+
+The precedence rule: **a country-specific row always wins over the "All" default** for users in that country. Users in countries without a specific override fall back to the "All" row.
+
+### What Each User Sees
+
+| User Country | HCP Validation | HCO Validation |
+|---|---|---|
+| United Kingdom (GB) | External → HSJ | External → OneKey |
+| Canada (CA) | Internal (data steward) | External → OneKey |
+| France (FR) | External → OneKey (default) | External → OneKey |
+| USA (US) | External → OneKey (default) | External → OneKey |
+
+Notice that the HCO row has no country overrides, so all countries use the same "All → External → OneKey" path for HCO changes.
+
+### Setting Up GB as Internal (Your Scenario)
+
+If you want GB to use **Internal** validation for HCP while HCP and HCO are External globally:
+
+1. Go to **Setup > Data Change Request Validation Types**
+2. Select **Account** object
+3. On the **Health Care Provider** row (which shows All / External / OneKey), click **"Add Country"**
+4. A new row appears — set:
+   - **Country:** United Kingdom
+   - **Validation Type:** Internal
+   - **Requires Approval for Creation:** toggle as needed
+   - **External Validation System Name:** leave blank (not needed for Internal)
+5. Click **Save**
+
+Now UK users editing HCP accounts generate Internal DCRs reviewed by your data stewards, while all other countries continue routing to OneKey.
+
+> **Important:** You also need managed fields with `ValidationType = Internal` for the fields you want governed in GB. If your managed fields are all set to `External`, the engine won't find a matching path for UK users — the record type mapping says Internal, but the managed field says External, causing a mismatch. Either create country-scoped managed fields for GB with `ValidationType = Internal`, or use globally scoped fields that already have `ValidationType = Internal`.
+
 ## Common Pitfalls
 
 ### 1. User's PreferredCountry must match a LifeSciCountry record
@@ -206,3 +325,7 @@ You can have the same field managed twice — once global and once country-scope
 ### 3. Country filter only affects managed fields
 
 Record type mappings (`LifeSciDataChgDefRecType`) also support `CountryId`, but persona definitions (`LifeSciDataChgPersonaDef`) do not. When planning a multi-country rollout, remember that profile-based behavior is always global.
+
+### 4. Country override on record type mapping without matching managed field ValidationType
+
+If you add a country override that changes the validation type (e.g., UK → Internal on an otherwise External HCP row), you must also have managed fields whose `ValidationType` matches. A record type mapping alone doesn't generate DCRs — it only defines the routing. The managed field's `ValidationType` must align with the record type mapping's `ValidationType` for that country. Otherwise: silent failure, no DCR.

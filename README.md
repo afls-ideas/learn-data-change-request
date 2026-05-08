@@ -208,7 +208,9 @@ For a detailed guide on Internal vs. External validation paths, external data pr
 
 Activate Data Change Definitions for each object you want DCR to govern:
 
-**Admin Console > Data Change Request** (left nav) — toggle Object Status on. Note: this page only shows Account; other objects are managed via the DCR Field Manager LWC or directly via SOQL.
+**Option A:** Admin Console > Data Change Request (left nav) — toggle Object Status on. Note: this page only shows Account; other objects are managed via the DCR Field Manager LWC or directly via SOQL.
+
+**Option B (recommended):** DCR Field Manager LWC > Step 1 (DCR Objects & Record Types) — the "Available Objects (not yet enabled)" section shows all supported objects that don't yet have an active definition. Click "Enable" to create the `LifeSciDataChangeDef` record. Use the disable (ban) icon on any active object card to deactivate it.
 
 ### 2. Record Type Definitions (REQUIRED)
 
@@ -414,17 +416,29 @@ See the full component documentation: [LWC_README.md](LWC_README.md)
 An admin LWC for managing DCR field definitions across all objects. Provides a visual tile-based UI showing which objects have DCR enabled and allows toggling individual fields on/off.
 
 **Features:**
-- Country filter at the top
-- Object tiles showing DCR status: lock icon + "DCR Enabled" with green left border when configured, "DCR Not Enabled" when missing record type mapping
-- Grey chips showing Record Type and Profile assignments per object
-- Click a tile to see all fields with checkboxes to toggle DCR governance
+- **Step 1 — DCR Objects & Record Types:** Enable/disable DCR objects, view configured vs unconfigured objects, manage record type mappings and validation types inline
+- **Step 1A — Country × Object Grid:** Visual matrix showing which record type mappings exist per country per object, with click-to-create country overrides
+- **Step 2 — DCR Managed Fields:** Object tiles showing DCR status, click to see all fields with checkboxes to toggle DCR governance, inline Validation Type and Apply Immediately controls
+- **Step 3 — Validate Config:** Run automated checks to detect validation type mismatches and parent-child alignment issues that cause silent DCR failures
+- Country filter at the top scopes all views
+- Enable new DCR objects directly from the UI (creates `LifeSciDataChangeDef` records)
+- Disable objects that are no longer needed (deactivates the definition)
 - Add/remove Record Type mappings (Account record types) directly from the UI
 - Add/remove Profile assignments (persona definitions) from the UI
-- Inline controls for Validation Type and Apply Immediately per field
 
-**Access:** Custom tab "DCR Field Manager" with permission set `DCR_Field_Manager_Access`.
+**Access:** Custom tab "DCR Field Manager" with permission set `DCR_Field_Manager_Access`. Also available via the "AFLS Powertool" Lightning app.
 
-## Integration Tests
+## Tests
+
+### Unit Tests
+
+`DCRFieldManagerControllerTest` covers all Apex controller methods with 20 test methods (100% pass rate). Tests create isolated `LifeSciDataChangeDef` records in `@TestSetup` and verify CRUD operations for managed fields, record type mappings, persona definitions, object enable/disable, validation detection, and country-scoped queries.
+
+```bash
+sf apex run test --class-names DCRFieldManagerControllerTest --result-format human --target-org <org-alias>
+```
+
+### Integration Tests
 
 `DCRIntegrationTest` is an Apex test class that verifies DCR generation across four objects using `System.runAs()` to execute as a non-admin user (Evan Casto — Field Sales Representative profile). Uses `@isTest(SeeAllData=true)` because it relies on live DCR definitions, managed fields, record type mappings, and existing Account/HealthcareProvider/BusinessLicense data.
 

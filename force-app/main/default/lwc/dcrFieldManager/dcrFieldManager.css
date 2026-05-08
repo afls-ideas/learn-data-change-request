@@ -127,7 +127,7 @@
 
 .obj-rt-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
     gap: 0.75rem;
     padding: 0.75rem;
     border: 1px solid #e5e5e5;
@@ -187,7 +187,8 @@
     font-size: 0.8125rem;
     font-weight: 600;
     color: #181818;
-    flex: 1;
+    width: 140px;
+    flex-shrink: 0;
 }
 
 .rt-mapping-combo {
@@ -195,9 +196,10 @@
     flex-shrink: 0;
 }
 
-.rt-mapping-country {
-    font-size: 0.6875rem;
-    color: #706e6b;
+.rt-mapping-scope {
+    width: 120px;
+    flex-shrink: 0;
+    text-align: right;
 }
 
 .badge-internal {
@@ -212,10 +214,17 @@
 
 .obj-rt-card-footer {
     display: flex;
+    align-items: center;
+    justify-content: space-between;
     gap: 1rem;
     padding: 0.375rem 0.75rem;
     background: #fafaf9;
     border-top: 1px solid #f0f0f0;
+}
+
+.obj-rt-footer-info {
+    display: flex;
+    gap: 1rem;
 }
 
 .obj-rt-field-count,
@@ -494,6 +503,179 @@
     color: #0176d3;
 }
 
+/* ── Country x Object Grid ── */
+
+.grid-view-wrapper {
+    border: 1px solid #e5e5e5;
+    border-radius: 8px;
+    background: #fff;
+    overflow: hidden;
+}
+
+.grid-view-scroll {
+    overflow-x: auto;
+}
+
+.country-grid {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.8125rem;
+}
+
+.country-grid th,
+.country-grid td {
+    padding: 0.5rem 0.75rem;
+    border: 1px solid #e5e5e5;
+    vertical-align: top;
+}
+
+.grid-corner {
+    background: #fafaf9;
+    font-weight: 700;
+    color: #181818;
+    min-width: 160px;
+    position: sticky;
+    left: 0;
+    z-index: 1;
+}
+
+.grid-obj-header {
+    background: #fafaf9;
+    font-weight: 700;
+    color: #181818;
+    text-align: center;
+    min-width: 180px;
+    white-space: nowrap;
+}
+
+.grid-obj-header lightning-icon {
+    margin-right: 0.25rem;
+}
+
+.grid-country-cell {
+    background: #fafaf9;
+    font-weight: 600;
+    color: #181818;
+    white-space: nowrap;
+    position: sticky;
+    left: 0;
+    z-index: 1;
+}
+
+.grid-row-global .grid-country-cell {
+    background: #f0f7ff;
+    border-bottom: 2px solid #0176d3;
+}
+
+.grid-row-global .grid-cell {
+    border-bottom: 2px solid #0176d3;
+}
+
+.grid-cell {
+    text-align: center;
+}
+
+.grid-cell-active {
+    background: #fff;
+}
+
+.grid-cell-empty {
+    background: #fafaf9;
+}
+
+.grid-cell-override {
+    background: #eaf5fe;
+}
+
+.grid-cell-inherited {
+    background: #fff;
+}
+
+.grid-mapping {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.375rem;
+    padding: 0.125rem 0;
+}
+
+.grid-rt-name {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #444;
+}
+
+.grid-badge {
+    display: inline-block;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    padding: 0.0625rem 0.375rem;
+    border-radius: 3px;
+    line-height: 1.4;
+}
+
+.grid-badge-internal {
+    background: #d4edfc;
+    color: #0176d3;
+}
+
+.grid-badge-external {
+    background: #fde8d0;
+    color: #a96404;
+}
+
+.grid-ext-system {
+    font-size: 0.6875rem;
+    color: #706e6b;
+    font-style: italic;
+}
+
+.grid-no-mapping {
+    font-size: 0.75rem;
+    color: #b0adab;
+    font-style: italic;
+}
+
+.grid-inherited {
+    font-size: 0.75rem;
+    color: #706e6b;
+    font-style: italic;
+}
+
+.grid-inherited-clickable {
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.125rem 0.375rem;
+    border-radius: 4px;
+    transition: all 0.15s;
+}
+
+.grid-inherited-clickable:hover {
+    background: #eaf5fe;
+    color: #0176d3;
+    font-style: normal;
+}
+
+.grid-add-icon {
+    opacity: 0.4;
+}
+
+.grid-inherited-clickable:hover .grid-add-icon {
+    opacity: 1;
+}
+
+.grid-filter-bar {
+    display: flex;
+    gap: 1rem;
+    align-items: flex-end;
+}
+
+.grid-rt-filter {
+    width: 250px;
+}
+
 /* ── Validate Config View ── */
 
 .validate-panel {
@@ -590,6 +772,54 @@
 .vr-detail {
     font-size: 0.75rem;
     color: #706e6b;
+}
+
+/* ── Enable/Disable Objects ── */
+
+.section-available {
+    background: #eaf5fe;
+    border: 1px solid #0176d3;
+    border-bottom: none;
+}
+
+.section-count-available {
+    background: #0176d3;
+}
+
+.section-icon-add {
+    --sds-c-icon-color-foreground-default: #0176d3;
+}
+
+.obj-enable-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    padding: 0.75rem;
+    border: 1px solid #e5e5e5;
+    border-top: none;
+    border-radius: 0 0 6px 6px;
+    background: #fafaf9;
+}
+
+.obj-enable-chip {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.375rem 0.625rem;
+    background: #fff;
+    border: 1px solid #e5e5e5;
+    border-radius: 6px;
+}
+
+.obj-enable-name {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: #181818;
+}
+
+.disable-btn {
+    margin-left: auto;
+    --sds-c-icon-color-foreground-default: #ba0517;
 }
 
 .saving-overlay {

@@ -12,6 +12,9 @@ import removePersonaDef from '@salesforce/apex/DCRFieldManagerController.removeP
 import getDcrRecordTypes from '@salesforce/apex/DCRFieldManagerController.getDcrRecordTypes';
 import getProfiles from '@salesforce/apex/DCRFieldManagerController.getProfiles';
 import validateConfig from '@salesforce/apex/DCRFieldManagerController.validateConfig';
+import getEligibleObjects from '@salesforce/apex/DCRFieldManagerController.getEligibleObjects';
+import enableDcrObject from '@salesforce/apex/DCRFieldManagerController.enableDcrObject';
+import disableDcrObject from '@salesforce/apex/DCRFieldManagerController.disableDcrObject';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import { refreshApex } from '@salesforce/apex';
 
@@ -65,11 +68,17 @@ export default class DcrFieldManager extends LightningElement {
     isValidating = false;
     _validationResults = [];
 
+    gridRecordTypeFilter = '';
+    eligibleObjects = [];
+    _wiredEligibleResult;
+
     showRecordTypeModal = false;
     showPersonaModal = false;
     modalDefId = null;
     modalRecordTypeId = '';
     modalValidationType = 'Internal';
+    modalCountryId = '';
+    modalExternalSystemName = '';
     modalProfileId = '';
     modalChangeUpdateType = 'DoNotApplyChangesImmediately';
 
@@ -98,6 +107,10 @@ export default class DcrFieldManager extends LightningElement {
         return this.activeStep === 'objectsAndRecTypes';
     }
 
+    get isCountryGridStep() {
+        return this.activeStep === 'countryGrid';
+    }
+
     get isManagedFieldsStep() {
         return this.activeStep === 'managedFields';
     }
@@ -109,7 +122,15 @@ export default class DcrFieldManager extends LightningElement {
     get stepObjectsClass() {
         const step = this.activeStep;
         if (step === 'objectsAndRecTypes') return 'step-item step-item-active';
-        return 'step-item step-item-complete';
+        if (step === 'countryGrid' || step === 'managedFields' || step === 'validateConfig') return 'step-item step-item-complete';
+        return 'step-item';
+    }
+
+    get stepGridClass() {
+        const step = this.activeStep;
+        if (step === 'countryGrid') return 'step-item step-item-active';
+        if (step === 'managedFields' || step === 'validateConfig') return 'step-item step-item-complete';
+        return 'step-item';
     }
 
     get stepFieldsClass() {
@@ -123,6 +144,115 @@ export default class DcrFieldManager extends LightningElement {
         return this.activeStep === 'validateConfig'
             ? 'step-item step-item-active'
             : 'step-item';
+    }
+
+    // Country x Object Grid
+    get gridRecordTypeOptions() {
+        const opts = [{ label: 'All Record Types', value: '' }];
+        const seen = new Set();
+        for (const od of this.objectDefs) {
+            for (const rtm of (od.recordTypeMappings || [])) {
+                if (rtm.recordTypeId && !seen.has(rtm.recordTypeId)) {
+                    seen.add(rtm.recordTypeId);
+                    opts.push({ label: rtm.recordTypeName, value: rtm.recordTypeId });
+                }
+            }
+        }
+        return opts;
+    }
+
+    handleGridRecordTypeChange(event) {
+        this.gridRecordTypeFilter = event.detail.value;
+    }
+
+    _filterMappings(mappings) {
+        if (!this.gridRecordTypeFilter) return mappings;
+        return mappings.filter(rtm => rtm.recordTypeId === this.gridRecordTypeFilter);
+    }
+
+    get gridColumns() {
+        return this.objectDefs
+            .filter(od => (od.recordTypeMappings || []).length > 0)
+            .map(od => ({
+                key: od.defId,
+                defId: od.defId,
+                objectName: od.objectName,
+                iconName: OBJECT_ICONS[od.objectName] || 'standard:custom'
+            }));
+    }
+
+    _buildMappingDisplay(rtm) {
+        return {
+            key: rtm.id,
+            recordTypeName: rtm.recordTypeName,
+            validationType: rtm.validationType,
+            badgeClass: rtm.validationType === 'External' ? 'grid-badge grid-badge-external' : 'grid-badge grid-badge-internal',
+            externalSystemName: rtm.externalSystemName || '',
+            hasExternalSystem: !!rtm.externalSystemName
+        };
+    }
+
+    get gridGlobalRow() {
+        const cols = this.gridColumns;
+        return cols.map(col => {
+            const od = this.objectDefs.find(o => o.defId === col.defId);
+            const globalMappings = this._filterMappings(
+                (od.recordTypeMappings || []).filter(rtm => !rtm.countryId)
+            );
+            return {
+                key: 'global-' + col.defId,
+                hasMappings: globalMappings.length > 0,
+                cellClass: globalMappings.length > 0 ? 'grid-cell grid-cell-active' : 'grid-cell grid-cell-empty',
+                mappings: globalMappings.map(rtm => this._buildMappingDisplay(rtm))
+            };
+        });
+    }
+
+    get gridCountryRows() {
+        const countriesWithData = this.countries.filter(c => c.value !== '');
+        const cols = this.gridColumns;
+        const rtFilter = this.gridRecordTypeFilter;
+        return countriesWithData.map(country => {
+            const cells = cols.map(col => {
+                const od = this.objectDefs.find(o => o.defId === col.defId);
+                const overrides = this._filterMappings(
+                    (od.recordTypeMappings || []).filter(rtm => rtm.countryId === country.value)
+                );
+                const hasGlobal = this._filterMappings(
+                    (od.recordTypeMappings || []).filter(rtm => !rtm.countryId)
+                ).length > 0;
+                return {
+                    key: country.value + '-' + col.defId,
+                    defId: col.defId,
+                    countryId: country.value,
+                    hasMappings: overrides.length > 0,
+                    canCreateOverride: !overrides.length && hasGlobal,
+                    cellClass: overrides.length > 0 ? 'grid-cell grid-cell-override' : 'grid-cell grid-cell-inherited',
+                    mappings: overrides.map(rtm => this._buildMappingDisplay(rtm)),
+                    inheritLabel: rtFilter ? 'Inherits Global' : 'Inherits Global'
+                };
+            });
+            return {
+                key: country.value,
+                countryLabel: country.label,
+                cells
+            };
+        });
+    }
+
+    handleGridCellCreateOverride(event) {
+        const defId = event.currentTarget.dataset.def;
+        const countryId = event.currentTarget.dataset.country;
+        this.modalDefId = defId;
+        this.modalCountryId = countryId;
+        this.modalValidationType = 'Internal';
+        this.modalExternalSystemName = '';
+        if (this.gridRecordTypeFilter) {
+            this.modalRecordTypeId = this.gridRecordTypeFilter;
+        } else {
+            this.modalRecordTypeId = this.dcrRecordTypes.length > 0 ? this.dcrRecordTypes[0].id : '';
+        }
+        this.showRecordTypeModal = true;
     }
 
     handleStepClick(event) {
@@ -175,15 +305,46 @@ export default class DcrFieldManager extends LightningElement {
     }
 
     _enrichedObjects() {
+        const selectedId = this.selectedCountryId;
         return this.objectDefs.map(od => {
-            const mappings = (od.recordTypeMappings || []).map(rtm => ({
-                ...rtm,
-                validationOptions: [
-                    { label: 'Internal', value: 'Internal' },
-                    { label: 'External', value: 'External' }
-                ],
-                countryLabel: rtm.countryId ? '' : null
-            }));
+            const allMappings = od.recordTypeMappings || [];
+            let filteredMappings;
+            if (selectedId) {
+                const countrySpecific = allMappings.filter(rtm => rtm.countryId === selectedId);
+                const countrySpecificRecTypeIds = new Set(countrySpecific.map(rtm => rtm.recordTypeId));
+                const globalFallbacks = allMappings.filter(rtm =>
+                    !rtm.countryId && !countrySpecificRecTypeIds.has(rtm.recordTypeId)
+                );
+                filteredMappings = [...countrySpecific, ...globalFallbacks];
+            } else {
+                filteredMappings = allMappings;
+            }
+
+            const mappings = filteredMappings.map(rtm => {
+                let scopeLabel;
+                let scopeClass;
+                if (rtm.countryId) {
+                    if (selectedId && rtm.countryId === selectedId) {
+                        scopeLabel = 'Country Override';
+                    } else {
+                        scopeLabel = rtm.countryName || 'Country';
+                    }
+                    scopeClass = 'scope-badge scope-country';
+                } else {
+                    scopeLabel = 'Global';
+                    scopeClass = 'scope-badge scope-global';
+                }
+                return {
+                    ...rtm,
+                    validationOptions: [
+                        { label: 'Internal', value: 'Internal' },
+                        { label: 'External', value: 'External' }
+                    ],
+                    scopeLabel,
+                    scopeClass,
+                    showScope: true
+                };
+            });
             return {
                 ...od,
                 iconName: OBJECT_ICONS[od.objectName] || 'standard:custom',
@@ -211,6 +372,75 @@ export default class DcrFieldManager extends LightningElement {
     @wire(getProfiles)
     wiredProfiles({ data }) {
         if (data) this.profiles = data;
+    }
+
+    @wire(getEligibleObjects)
+    wiredEligible(result) {
+        this._wiredEligibleResult = result;
+        if (result.data) {
+            this.eligibleObjects = result.data;
+        }
+    }
+
+    get enabledObjects() {
+        return this.eligibleObjects
+            .filter(o => o.isEnabled)
+            .map(o => ({
+                ...o,
+                iconName: OBJECT_ICONS[o.objectName] || 'standard:custom'
+            }));
+    }
+
+    get disabledObjects() {
+        return this.eligibleObjects
+            .filter(o => !o.isEnabled)
+            .map(o => ({
+                ...o,
+                iconName: OBJECT_ICONS[o.objectName] || 'standard:custom'
+            }));
+    }
+
+    get hasDisabledObjects() {
+        return this.disabledObjects.length > 0;
+    }
+
+    get disabledCount() {
+        return this.disabledObjects.length;
+    }
+
+    async handleEnableObject(event) {
+        const objectName = event.currentTarget.dataset.object;
+        this.isSaving = true;
+        try {
+            await enableDcrObject({ objectName });
+            this.showToast('Success', `${objectName} enabled for DCR`, 'success');
+            await Promise.all([
+                refreshApex(this._wiredEligibleResult),
+                refreshApex(this._wiredDefsResult)
+            ]);
+        } catch (error) {
+            this.showToast('Error', error.body?.message || 'Failed to enable object', 'error');
+        } finally {
+            this.isSaving = false;
+        }
+    }
+
+    async handleDisableObject(event) {
+        const defId = event.currentTarget.dataset.def;
+        const objectName = event.currentTarget.dataset.object;
+        this.isSaving = true;
+        try {
+            await disableDcrObject({ defId });
+            this.showToast('Success', `${objectName} disabled for DCR`, 'success');
+            await Promise.all([
+                refreshApex(this._wiredEligibleResult),
+                refreshApex(this._wiredDefsResult)
+            ]);
+        } catch (error) {
+            this.showToast('Error', error.body?.message || 'Failed to disable object', 'error');
+        } finally {
+            this.isSaving = false;
+        }
     }
 
     @wire(getObjectDefinitions, { countryId: '$selectedCountryId' })
@@ -441,6 +671,8 @@ export default class DcrFieldManager extends LightningElement {
         this.modalDefId = event.currentTarget.dataset.def;
         this.modalRecordTypeId = this.dcrRecordTypes.length > 0 ? this.dcrRecordTypes[0].id : '';
         this.modalValidationType = 'Internal';
+        this.modalCountryId = '';
+        this.modalExternalSystemName = '';
         this.showRecordTypeModal = true;
     }
 
@@ -456,6 +688,18 @@ export default class DcrFieldManager extends LightningElement {
         this.modalValidationType = event.detail.value;
     }
 
+    handleModalCountryChange(event) {
+        this.modalCountryId = event.detail.value;
+    }
+
+    get isModalExternal() {
+        return this.modalValidationType === 'External';
+    }
+
+    handleModalExternalSystemChange(event) {
+        this.modalExternalSystemName = event.target.value;
+    }
+
     async handleSaveRecordType() {
         if (!this.modalRecordTypeId) {
             this.showToast('Error', 'Please select a Record Type', 'error');
@@ -467,7 +711,9 @@ export default class DcrFieldManager extends LightningElement {
             await addRecordTypeMapping({
                 defId: this.modalDefId,
                 recordTypeId: this.modalRecordTypeId,
-                validationType: this.modalValidationType
+                validationType: this.modalValidationType,
+                countryId: this.modalCountryId || null,
+                externalSystemName: this.modalExternalSystemName || null
             });
             this.showToast('Success', 'Record Type mapping added', 'success');
             await refreshApex(this._wiredDefsResult);

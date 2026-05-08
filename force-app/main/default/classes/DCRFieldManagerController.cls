@@ -21,6 +21,8 @@ public with sharing class DCRFieldManagerController {
         @AuraEnabled public String recordTypeName;
         @AuraEnabled public String validationType;
         @AuraEnabled public String countryId;
+        @AuraEnabled public String countryName;
+        @AuraEnabled public String externalSystemName;
     }
 
     public class FieldInfo {
@@ -110,7 +112,7 @@ public with sharing class DCRFieldManagerController {
         }
 
         List<LifeSciDataChgDefRecType> recTypes = [
-            SELECT Id, LifeSciDataChgDefId, RecordTypeId, ValidationType, CountryId
+            SELECT Id, LifeSciDataChgDefId, RecordTypeId, ValidationType, CountryId, ExternalValidationSysName
             FROM LifeSciDataChgDefRecType
         ];
         Map<Id, LifeSciDataChgDefRecType> recTypeByDef = new Map<Id, LifeSciDataChgDefRecType>();
@@ -126,6 +128,14 @@ public with sharing class DCRFieldManagerController {
         }
         Map<Id, RecordType> recordTypeNameMap = new Map<Id, RecordType>(
             [SELECT Id, Name FROM RecordType WHERE Id IN :allRecordTypeIds]
+        );
+
+        Set<Id> countryIdsFromMappings = new Set<Id>();
+        for (LifeSciDataChgDefRecType rt : recTypes) {
+            if (rt.CountryId != null) countryIdsFromMappings.add(rt.CountryId);
+        }
+        Map<Id, LifeSciCountry> countryNameMap = new Map<Id, LifeSciCountry>(
+            [SELECT Id, MasterLabel, IsoCode FROM LifeSciCountry WHERE Id IN :countryIdsFromMappings]
         );
 
         List<LifeSciDataChgPersonaDef> personaDefs = [
@@ -182,6 +192,11 @@ public with sharing class DCRFieldManagerController {
                     rtm.recordTypeId = drt.RecordTypeId;
                     rtm.validationType = drt.ValidationType;
                     rtm.countryId = drt.CountryId;
+                    rtm.externalSystemName = drt.ExternalValidationSysName;
+                    if (drt.CountryId != null && countryNameMap.containsKey(drt.CountryId)) {
+                        LifeSciCountry c = countryNameMap.get(drt.CountryId);
+                        rtm.countryName = c.MasterLabel + ' (' + c.IsoCode + ')';
+                    }
                     if (drt.RecordTypeId != null && recordTypeNameMap.containsKey(drt.RecordTypeId)) {
                         rtm.recordTypeName = recordTypeNameMap.get(drt.RecordTypeId).Name;
                     }
@@ -296,12 +311,18 @@ public with sharing class DCRFieldManagerController {
     }
 
     @AuraEnabled
-    public static String addRecordTypeMapping(String defId, String recordTypeId, String validationType) {
+    public static String addRecordTypeMapping(String defId, String recordTypeId, String validationType, String countryId, String externalSystemName) {
         LifeSciDataChgDefRecType rt = new LifeSciDataChgDefRecType();
         rt.LifeSciDataChgDefId = defId;
         rt.RecordTypeId = recordTypeId;
         rt.ValidationType = validationType;
         rt.IsNewRecApprovalRequired = true;
+        if (String.isNotBlank(countryId)) {
+            rt.CountryId = countryId;
+        }
+        if (String.isNotBlank(externalSystemName)) {
+            rt.ExternalValidationSysName = externalSystemName;
+        }
         try {
             insert rt;
         } catch (DmlException e) {
@@ -513,6 +534,75 @@ public with sharing class DCRFieldManagerController {
         }
 
         return results;
+    }
+
+    public class DcrEligibleObject {
+        @AuraEnabled public String objectName;
+        @AuraEnabled public Boolean isEnabled;
+        @AuraEnabled public String defId;
+    }
+
+    @AuraEnabled(cacheable=true)
+    public static List<DcrEligibleObject> getEligibleObjects() {
+        List<String> knownObjects = new List<String>{
+            'Account', 'BusinessLicense', 'ContactPointAddress',
+            'ContactPointEmail', 'ContactPointPhone', 'ContactPointSocial',
+            'HealthcareProvider', 'HealthcareProviderNpi',
+            'HealthcareProviderSpecialty', 'ProviderAffiliation'
+        };
+
+        Map<String, LifeSciDataChangeDef> existingByObject = new Map<String, LifeSciDataChangeDef>();
+        for (LifeSciDataChangeDef def : [
+            SELECT Id, ObjectName, IsActive FROM LifeSciDataChangeDef
+        ]) {
+            existingByObject.put(def.ObjectName, def);
+        }
+
+        Map<String, Schema.SObjectType> globalDescribe = Schema.getGlobalDescribe();
+        List<DcrEligibleObject> result = new List<DcrEligibleObject>();
+        for (String objName : knownObjects) {
+            if (globalDescribe.get(objName) == null) continue;
+            DcrEligibleObject eo = new DcrEligibleObject();
+            eo.objectName = objName;
+            LifeSciDataChangeDef existing = existingByObject.get(objName);
+            eo.isEnabled = (existing != null && existing.IsActive);
+            eo.defId = existing != null ? existing.Id : null;
+            result.add(eo);
+        }
+        return result;
+    }
+
+    @AuraEnabled
+    public static String enableDcrObject(String objectName) {
+        List<LifeSciDataChangeDef> existing = [
+            SELECT Id, IsActive FROM LifeSciDataChangeDef WHERE ObjectName = :objectName LIMIT 1
+        ];
+        if (!existing.isEmpty()) {
+            LifeSciDataChangeDef def = existing[0];
+            if (!def.IsActive) {
+                def.IsActive = true;
+                update def;
+            }
+            return def.Id;
+        }
+        LifeSciDataChangeDef def = new LifeSciDataChangeDef();
+        def.DeveloperName = objectName.replaceAll('[^a-zA-Z0-9]', '_') + '_DCR';
+        def.MasterLabel = objectName + ' DCR';
+        def.ObjectName = objectName;
+        def.IsActive = true;
+        try {
+            insert def;
+        } catch (DmlException e) {
+            throw new AuraHandledException(e.getDmlMessage(0));
+        }
+        return def.Id;
+    }
+
+    @AuraEnabled
+    public static void disableDcrObject(String defId) {
+        LifeSciDataChangeDef def = [SELECT Id, IsActive FROM LifeSciDataChangeDef WHERE Id = :defId];
+        def.IsActive = false;
+        update def;
     }
 
     private class FieldInfoComparator implements System.Comparator<FieldInfo> {
